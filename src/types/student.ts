@@ -1,3 +1,6 @@
+import { Class } from "./master/class";
+import { School } from "./master/school";
+
 export interface Student {
   id: number;
   user_id: number;
@@ -15,4 +18,6 @@ export interface Student {
   role_id: number;
   class_id: number;
   class_name: string;
+  school: School;
+  class: Class | null;
 }

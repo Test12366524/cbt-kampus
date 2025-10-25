@@ -4,7 +4,7 @@ import { AppShell, type MenuBundle } from "@/components/student-shell";
 const MY_MENUS: MenuBundle = {
   navMain: [
     { title: "Home", url: "/", icon: "home" },
-    { title: "Jadwal", url: "/pelajaran", icon: "calendar" },
+    // { title: "Jadwal", url: "/pelajaran", icon: "calendar" },
     { title: "LMS", url: "/lms", icon: "folders" },
     { title: "Tryout", url: "/tryout", icon: "trophy" },
   ],

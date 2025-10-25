@@ -18,6 +18,7 @@ import {
   BookOpen,
   Upload,
   FileDown,
+  Info,
 } from "lucide-react";
 
 import {
@@ -70,6 +71,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiteHeader } from "@/components/site-header";
 import { Combobox } from "@/components/ui/combo-box";
@@ -161,6 +170,31 @@ function initials(name: string): string {
   return (first + last).toUpperCase() || "U";
 }
 
+/* Util tanggal */
+function toYMD(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function rangeThisMonth(): { from: string; to: string } {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { from: toYMD(from), to: toYMD(to) };
+}
+function rangeThisYear(): { from: string; to: string } {
+  const now = new Date();
+  return {
+    from: `${now.getFullYear()}-01-01`,
+    to: `${now.getFullYear()}-12-31`,
+  };
+}
+function rangeLastDays(n: number): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(to.getDate() - (n - 1)); // inklusif hari ini
+  return { from: toYMD(from), to: toYMD(to) };
+}
+
 export default function StudentsPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
@@ -172,9 +206,11 @@ export default function StudentsPage() {
   const [classId, setClassId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  // Optional date range (untuk export)
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
+  // (Dipindah ke modal export) Rentang tanggal untuk export
+  const [exportOpen, setExportOpen] = useState(false);
+  const [expFrom, setExpFrom] = useState<string>("");
+  const [expTo, setExpTo] = useState<string>("");
+  const [expError, setExpError] = useState<string>("");
 
   // Remote search for combobox
   const [schoolSearch, setSchoolSearch] = useState<string>("");
@@ -364,8 +400,6 @@ export default function StudentsPage() {
     setClassSearch("");
     setSearchInput("");
     setSearch("");
-    setFromDate("");
-    setToDate("");
     setPage(1);
     void refetch();
   };
@@ -381,16 +415,13 @@ export default function StudentsPage() {
     };
 
     try {
-      // Skenario normal: unwrap resolve → sukses
       const resp = await importStudents({ file }).unwrap();
       showImportSuccess(resp, file.name);
       void refetch();
     } catch (err: unknown) {
-      // Jika wrapper salah menandai error, cek payload:
       const { code, message, data: inner } = extractPayload(err);
 
       if (code === 200) {
-        // Perlakukan sebagai sukses
         showImportSuccess(
           { code, message: message ?? "Success", data: inner },
           file.name
@@ -405,7 +436,72 @@ export default function StudentsPage() {
     }
   };
 
-  const handleExport = async () => {
+  // === Export flow via modal dengan rentang tanggal ===
+  const openExport = () => {
+    // set default pilihan saat modal dibuka: kosong (semua waktu)
+    setExpFrom("");
+    setExpTo("");
+    setExpError("");
+    setExportOpen(true);
+  };
+
+  const quickPick = (type: "today" | "7" | "month" | "year" | "all") => {
+    if (type === "today") {
+      const d = toYMD(new Date());
+      setExpFrom(d);
+      setExpTo(d);
+      setExpError("");
+      return;
+    }
+    if (type === "7") {
+      const { from, to } = rangeLastDays(7);
+      setExpFrom(from);
+      setExpTo(to);
+      setExpError("");
+      return;
+    }
+    if (type === "month") {
+      const { from, to } = rangeThisMonth();
+      setExpFrom(from);
+      setExpTo(to);
+      setExpError("");
+      return;
+    }
+    if (type === "year") {
+      const { from, to } = rangeThisYear();
+      setExpFrom(from);
+      setExpTo(to);
+      setExpError("");
+      return;
+    }
+    // all
+    setExpFrom("");
+    setExpTo("");
+    setExpError("");
+  };
+
+  // Validasi rentang tanggal
+  useEffect(() => {
+    if (expFrom && expTo) {
+      const fromTime = new Date(expFrom).getTime();
+      const toTime = new Date(expTo).getTime();
+      if (
+        !Number.isNaN(fromTime) &&
+        !Number.isNaN(toTime) &&
+        fromTime > toTime
+      ) {
+        setExpError(
+          "Tanggal mulai tidak boleh lebih besar dari tanggal akhir."
+        );
+      } else {
+        setExpError("");
+      }
+    } else {
+      setExpError("");
+    }
+  }, [expFrom, expTo]);
+
+  const exportNow = async () => {
     try {
       const payload: {
         from_date?: string;
@@ -413,19 +509,35 @@ export default function StudentsPage() {
         school_id?: number;
         class_id?: number;
       } = {};
-      if (fromDate) payload.from_date = fromDate;
-      if (toDate) payload.to_date = toDate;
+      if (expFrom) payload.from_date = expFrom;
+      if (expTo) payload.to_date = expTo;
       if (typeof schoolId === "number") payload.school_id = schoolId;
       if (typeof classId === "number") payload.class_id = classId;
 
       const resp = await exportStudents(payload).unwrap();
       alertSuccess("Export", resp?.data ?? resp?.message ?? "Diproses.");
+      setExportOpen(false);
     } catch (err: unknown) {
       const info = extractPayload(err);
       const msg = info.message ?? "Gagal memulai export.";
       alertError("Export gagal", msg);
     }
   };
+
+  // Ringkasan rentang (informasi)
+  const rangeSummary = useMemo(() => {
+    if (!expFrom && !expTo) return "Semua waktu (tanpa batas tanggal).";
+    if (expFrom && !expTo)
+      return `Dari ${displayDate(expFrom)} hingga seterusnya.`;
+    if (!expFrom && expTo)
+      return `Hingga ${displayDate(expTo)} (tanpa batas awal).`;
+
+    const from = new Date(expFrom);
+    const to = new Date(expTo);
+    const ms = to.getTime() - from.getTime();
+    const days = Math.floor(ms / 86400000) + 1;
+    return `${displayDate(expFrom)} s.d. ${displayDate(expTo)} • ${days} hari`;
+  }, [expFrom, expTo]);
 
   const [openForm, setOpenForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -518,17 +630,17 @@ export default function StudentsPage() {
                 </Button>
               </a>
 
-              {/* Export */}
+              {/* Export → BUKA MODAL PILIH RENTANG TANGGAL */}
               <Button
                 variant="outline"
                 onClick={handleExport}
-                title="Export Mahasiswa"
+                title="Export Siswa"
                 disabled={exporting}
               >
                 <FileDown
                   className={`mr-2 h-4 w-4 ${exporting ? "animate-spin" : ""}`}
                 />
-                {exporting ? "Memulai…" : "Export"}
+                Export
               </Button>
 
               {/* Reset Filter */}
@@ -559,7 +671,7 @@ export default function StudentsPage() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {/* Toolbar */}
+            {/* Toolbar (tanpa field tanggal—sekarang pindah ke modal export) */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
               {/* Global Search */}
               <div className="relative lg:col-span-4">
@@ -632,6 +744,24 @@ export default function StudentsPage() {
                     <SelectItem value="inactive">Tidak Aktif</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Rentang Tanggal (opsional untuk export) */}
+              <div className="lg:col-span-3">
+                <Input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  placeholder="Dari tanggal"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <Input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  placeholder="Sampai tanggal"
+                />
               </div>
             </div>
 
@@ -916,6 +1046,130 @@ export default function StudentsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* ===== Export Modal: pilih rentang tanggal yang informatif ===== */}
+        <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileDown className="h-5 w-5" />
+                Export Siswa
+              </DialogTitle>
+              <DialogDescription>
+                Pilih rentang tanggal <b>dibuat</b> (kolom <i>created_at</i>)
+                yang ingin kamu ekspor. Kosongkan salah satu atau kedua tanggal
+                untuk mengekspor tanpa batas (semua waktu).
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Quick ranges */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => quickPick("today")}
+              >
+                Hari ini
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => quickPick("7")}
+              >
+                7 hari terakhir
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => quickPick("month")}
+              >
+                Bulan ini
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => quickPick("year")}
+              >
+                Tahun ini
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => quickPick("all")}
+              >
+                Semua waktu
+              </Button>
+            </div>
+
+            {/* Date inputs */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Dari tanggal
+                </label>
+                <Input
+                  type="date"
+                  value={expFrom}
+                  onChange={(e) => setExpFrom(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Sampai tanggal
+                </label>
+                <Input
+                  type="date"
+                  value={expTo}
+                  onChange={(e) => setExpTo(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Summary & validation */}
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+              <div className="flex items-start gap-2">
+                <CalendarRange className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                <div>
+                  <div className="font-medium">Ringkasan</div>
+                  <div className="text-muted-foreground">{rangeSummary}</div>
+                </div>
+              </div>
+              {expError && (
+                <div className="mt-2 text-xs font-medium text-red-600">
+                  {expError}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:justify-between">
+              <div className="text-[11px] text-muted-foreground">
+                Tip: Filter Sekolah/Kelas di layar utama juga ikut diterapkan
+                pada hasil export.
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setExportOpen(false)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="button"
+                  onClick={exportNow}
+                  disabled={!!expError || exporting}
+                >
+                  {exporting ? "Memproses…" : "Export"}
+                </Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </>
   );

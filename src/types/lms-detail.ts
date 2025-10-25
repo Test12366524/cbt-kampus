@@ -1,3 +1,28 @@
+export interface Media {
+  id: number;
+  model_type: string; // contoh: "App\\Models\\Lms\\LmsDetail"
+  model_id: number;
+  uuid: string;
+  collection_name: string; // contoh: "file"
+  name: string; // contoh: "test-barcode"
+  file_name: string; // contoh: "test-barcode.pdf"
+  mime_type: string; // contoh: "application/pdf"
+  disk: string; // contoh: "public"
+  conversions_disk: string; // contoh: "public"
+  size: number; // bytes
+
+  manipulations: unknown[];
+  custom_properties: unknown[];
+  generated_conversions: unknown[];
+  responsive_images: unknown[];
+
+  order_column: number;
+  created_at: string; // ISO datetime
+  updated_at: string; // ISO datetime
+  original_url: string; // URL file asli
+  preview_url: string; // URL preview (bisa kosong)
+}
+
 export interface LmsDetail {
   id: number;
   lms_id: number;
@@ -17,4 +42,5 @@ export interface LmsDetail {
   subject_name: string;
   subject_sub_code: string;
   subject_sub_name: string;
+  media: Media[];
 }

@@ -374,12 +374,13 @@ function StudentSidebar({
                   <li key={item.title} className="mb-1">
                     <Link
                       href={item.url || "#"}
-                      onClick={onClose}
                       className={cx(
                         "group relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition",
-                        "text-zinc-700 hover:bg-sky-500",
-                        active && "bg-sky-600 text-white shadow"
+                        active
+                          ? "bg-sky-600 text-white shadow"
+                          : "text-zinc-800 hover:bg-sky-500"
                       )}
+                      onClick={onClose}
                     >
                       <IconComp className="size-5" />
                       <span className="font-medium tracking-tight">
@@ -419,8 +420,17 @@ type SiteHeaderProps = {
 };
 
 export function SiteHeader({ title, user, onMenuClick }: SiteHeaderProps) {
+  const router = useRouter();
+  const [q, setQ] = React.useState("");
+
+  const submitSearch = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const term = q.trim();
+    router.push(term ? `/lms?search=${encodeURIComponent(term)}` : "/lms");
+  };
+
   return (
-    <header className="sticky top-0 z-40 shadow-xl border-b bg-white/65 dark:bg-zinc-950/80">
+    <header className="sticky top-0 z-40 shadow-xl border-b bg-white/65">
       <div className="mx-auto w-full max-w-[1400px] px-4 pb-3 pt-4 lg:px-6">
         <div className="flex items-center justify-between gap-3 rounded-2xl bg-sky-600 px-3 py-2 text-white shadow">
           {/* Mobile burger */}
@@ -433,17 +443,40 @@ export function SiteHeader({ title, user, onMenuClick }: SiteHeaderProps) {
           </button>
 
           {/* Search pill */}
-          <div className="flex w-full max-w-[560px] items-center gap-2">
+          <form
+            onSubmit={submitSearch}
+            className="flex w-full max-w-[560px] items-center gap-2"
+          >
             <div className="relative w-full">
               <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 opacity-80" />
               <input
                 type="text"
-                placeholder="Search"
+                placeholder="Cari materi (judul)"
                 aria-label={`Search in ${title}`}
                 className="w-full rounded-full border-0 bg-white/95 px-9 py-2 text-sm text-slate-900 placeholder:text-slate-500 outline-none ring-2 ring-transparent focus:ring-sky-300"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitSearch();
+                }}
               />
+              {/* optional clear button */}
+              {q && (
+                <button
+                  type="button"
+                  onClick={() => setQ("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/70 px-2 py-0.5 text-xs text-sky-700 hover:bg-white"
+                  aria-label="Clear"
+                >
+                  ×
+                </button>
+              )}
             </div>
-          </div>
+            {/* SR submit for accessibility; Enter sudah cukup */}
+            <button type="submit" className="sr-only">
+              Cari
+            </button>
+          </form>
 
           {/* Right cluster */}
           <div className="flex items-center gap-2">
@@ -459,6 +492,7 @@ export function SiteHeader({ title, user, onMenuClick }: SiteHeaderProps) {
     </header>
   );
 }
+
 
 /* =========================
  * AppShell (sidebar sticky di desktop)
@@ -482,18 +516,18 @@ export function AppShell({
   
   if (status === "loading") {
     return (
-      <div className="relative min-h-screen w-full bg-gradient-to-b from-sky-50 via-white to-sky-50 dark:from-sky-950 dark:via-sky-900 dark:to-sky-950">
+      <div className="relative min-h-screen w-full bg-gradient-to-b from-sky-50 via-white to-sky-50">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(125,211,252,0.25),_transparent_60%),radial-gradient(ellipse_at_bottom,_rgba(14,165,233,0.15),_transparent_55%)]" />
         <div className="relative mx-auto flex min-h-screen max-w-2xl items-center justify-center p-6">
           <div
-            className="w-full max-w-md rounded-3xl border border-sky-100 bg-white/90 shadow-xl ring-1 ring-sky-100/60 backdrop-blur-sm dark:border-sky-800/60 dark:bg-sky-950/60 dark:ring-sky-800/40"
+            className="w-full max-w-md rounded-3xl border border-sky-100 bg-white/90 shadow-xl ring-1 ring-sky-100/60 backdrop-blur-sm"
             role="status"
             aria-live="polite"
             aria-busy="true"
           >
             <div className="flex items-center gap-4 p-6">
               {/* Spinner */}
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-sky-50 ring-1 ring-inset ring-sky-100 dark:bg-sky-900/50 dark:ring-sky-800">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-sky-50 ring-1 ring-inset ring-sky-100">
                 <svg
                   className="h-5 w-5 animate-spin text-sky-500"
                   viewBox="0 0 24 24"
@@ -519,22 +553,22 @@ export function AppShell({
 
               {/* Text + subtle skeleton */}
               <div className="flex-1">
-                <p className="text-sm font-semibold tracking-wide text-sky-700 dark:text-sky-200">
+                <p className="text-sm font-semibold tracking-wide text-sky-700">
                   Memuat sesi pengguna…
                 </p>
                 <div className="mt-3 space-y-2">
-                  <div className="h-2 w-2/3 animate-pulse rounded-full bg-sky-100 dark:bg-sky-800" />
-                  <div className="h-2 w-1/3 animate-pulse rounded-full bg-sky-100 dark:bg-sky-800" />
+                  <div className="h-2 w-2/3 animate-pulse rounded-full bg-sky-100" />
+                  <div className="h-2 w-1/3 animate-pulse rounded-full bg-sky-100" />
                 </div>
               </div>
             </div>
 
             {/* Soft divider */}
-            <div className="h-px bg-gradient-to-r from-transparent via-sky-100 to-transparent dark:via-sky-800" />
+            <div className="h-px bg-gradient-to-r from-transparent via-sky-100 to-transparent" />
 
             {/* Helper line */}
             <div className="px-6 py-4">
-              <p className="text-xs text-sky-600/80 dark:text-sky-300/80">
+              <p className="text-xs text-sky-600/80">
                 Menyiapkan dashboard dan preferensi Anda…
               </p>
             </div>

@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Trophy,
-  AlertCircle,
-  User2,
-} from "lucide-react";
-import { Role } from "@/types/user";
+import { Trophy, AlertCircle, User2 } from "lucide-react";
+import type { Role } from "@/types/user";
+import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
+import type { ParticipantHistoryItem } from "@/types/student/tryout";
 
 /** ===== Helpers ===== */
 type Session = {
@@ -20,8 +18,7 @@ type Session = {
   expires: string;
 };
 
-// Simpel: ambil session dari sessionStorage/localStorage/cookie jika ada.
-// Fallback ke contoh yang kamu kirim.
+// Ambil session dari storage bila ada, fallback ke contoh
 function useSession(): Session {
   const fallback: Session = {
     user: {
@@ -58,67 +55,84 @@ function useSession(): Session {
   return session;
 }
 
-/** ===== Dummy data untuk contoh ===== */
-const latestTests = [
-  {
-    title: "TO TKA 4 - Geografi",
-    start: "23 October 2025 17:49:03",
-    end: "23 October 2025 18:49:03",
-    score: "-",
-  },
-  {
-    title: "TO TKA 4 - Bahasa Indonesia Wajib",
-    start: "21 October 2025 20:16:57",
-    end: "23 October 2025 17:49:03",
-    score: "4",
-  },
-  {
-    title: "TO TKA 4 - Matematika Wajib",
-    start: "19 October 2025 17:49:51",
-    end: "19 October 2025 17:50:56",
-    score: "20",
-  },
-  {
-    title: "TO TKA 4 - Matematika Lanjut",
-    start: "19 October 2025 15:37:38",
-    end: "19 October 2025 15:38:57",
-    score: "3",
-  },
-  {
-    title: "TO TKA - Tes Login SMA 78",
-    start: "16 September 2025 14:46:54",
-    end: "29 September 2025 18:56:16",
-    score: "0",
-  },
-];
+function formatDateTime(iso?: string | null): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat("id-ID", {
+      dateStyle: "long",
+      timeStyle: "medium",
+      timeZone: "Asia/Jakarta",
+    }).format(d);
+  } catch {
+    return iso ?? "—";
+  }
+}
 
 export default function DashboardPage() {
   const { user } = useSession();
 
-  // nilai tinggi & rendah (contoh hitung dari latestTests)
-  const scores = useMemo(
-    () =>
-      latestTests
-        .map((t) => (t.score === "-" ? null : Number(t.score)))
-        .filter((n) => n !== null) as number[],
-    []
-  );
+  // Ambil riwayat partisipan milik user, minta 10 lalu kita sortir & ambil 5 terbaru di sisi klien
+  const {
+    data: history,
+    isLoading,
+    isError,
+  } = useGetParticipantHistoryListQuery({
+    user_id: user.id,
+    paginate: 10,
+    // kita ingin "terbaru", pada banyak API hal ini identik dengan updated_at paling akhir
+    orderBy: "updated_at",
+  });
 
-  const maxScore = scores.length ? Math.max(...scores) : null;
-  const minScore = scores.length ? Math.min(...scores) : null;
+  // Normalisasi & sortir terbaru, lalu ambil 5 teratas
+  const latestTop5 = useMemo(() => {
+    const items = (history?.data ?? []).slice();
 
-  const maxMeta = latestTests.find(
-    (t) => (t.score !== "-" ? Number(t.score) : null) === maxScore
-  );
-  const minMeta = latestTests.find(
-    (t) => (t.score !== "-" ? Number(t.score) : null) === minScore
-  );
+    const ts = (r: ParticipantHistoryItem): number => {
+      const pick =
+        r.updated_at ??
+        r.end_date ??
+        r.start_date ??
+        r.created_at ?? // created_at ada di contoh
+        null;
+      return pick ? new Date(pick).getTime() : 0;
+    };
+
+    items.sort((a, b) => ts(b) - ts(a));
+    return items.slice(0, 5);
+  }, [history]);
+
+  // Hitung nilai terbesar & terkecil dari 5 terbaru (abaikan nilai null/"-" jika ada)
+  const { maxScore, minScore, maxMeta, minMeta } = useMemo(() => {
+    const withScore = latestTop5.filter(
+      (r) => typeof r.grade === "number" && !Number.isNaN(r.grade)
+    );
+    if (withScore.length === 0) {
+      return {
+        maxScore: null as number | null,
+        minScore: null as number | null,
+        maxMeta: undefined as ParticipantHistoryItem | undefined,
+        minMeta: undefined as ParticipantHistoryItem | undefined,
+      };
+    }
+    const grades = withScore.map((r) => r.grade as number);
+    const max = Math.max(...grades);
+    const min = Math.min(...grades);
+    const maxRow = withScore.find((r) => r.grade === max);
+    const minRow = withScore.find((r) => r.grade === min);
+    return {
+      maxScore: max,
+      minScore: min,
+      maxMeta: maxRow,
+      minMeta: minRow,
+    };
+  }, [latestTop5]);
+
+  const totalHistory = history?.total ?? 0;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.06),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(56,189,248,0.06),transparent_40%)]">
-      {/* Layout grid: sidebar + main */}
       <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-4 md:grid-cols-[240px,1fr] md:gap-6">
-
         {/* ===== Main ===== */}
         <main className="space-y-6">
           {/* Welcome */}
@@ -137,12 +151,12 @@ export default function DashboardPage() {
 
             {/* Cards row */}
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-              {/* Total Paket */}
+              {/* Total Paket/riwayat */}
               <Card
                 tone="sky"
                 title="Total Paket Saya"
-                value="0"
-                subtitle="—"
+                value={String(totalHistory)}
+                subtitle="Riwayat pengerjaan"
               />
 
               {/* Nilai Ujian Terbesar */}
@@ -152,7 +166,12 @@ export default function DashboardPage() {
                 value={maxScore !== null ? String(maxScore) : "—"}
                 subtitle={
                   maxMeta
-                    ? `${maxMeta.title} • ${maxMeta.end}`
+                    ? `${maxMeta.test_details?.title ?? "—"} • ${formatDateTime(
+                        maxMeta.end_date ??
+                          maxMeta.updated_at ??
+                          maxMeta.start_date ??
+                          null
+                      )}`
                     : "Belum ada nilai"
                 }
                 icon={<Trophy className="h-4 w-4" />}
@@ -165,7 +184,12 @@ export default function DashboardPage() {
                 value={minScore !== null ? String(minScore) : "—"}
                 subtitle={
                   minMeta
-                    ? `${minMeta.title} • ${minMeta.end}`
+                    ? `${minMeta.test_details?.title ?? "—"} • ${formatDateTime(
+                        minMeta.end_date ??
+                          minMeta.updated_at ??
+                          minMeta.start_date ??
+                          null
+                      )}`
                     : "Belum ada nilai"
                 }
                 icon={<AlertCircle className="h-4 w-4" />}
@@ -190,32 +214,81 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {latestTests.map((r, i) => (
-                    <tr
-                      key={r.title + i}
-                      className={i % 2 ? "bg-zinc-50/40" : "bg-white/50"}
-                    >
-                      <Td>
-                        <span className="inline-flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-indigo-500/70" />
-                          {r.title}
-                        </span>
+                  {isLoading &&
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr
+                        key={`skeleton-${i}`}
+                        className={i % 2 ? "bg-zinc-50/40" : "bg-white/50"}
+                      >
+                        <Td>
+                          <div className="h-4 w-56 animate-pulse rounded bg-zinc-200" />
+                        </Td>
+                        <Td>
+                          <div className="h-4 w-40 animate-pulse rounded bg-zinc-200" />
+                        </Td>
+                        <Td>
+                          <div className="h-4 w-40 animate-pulse rounded bg-zinc-200" />
+                        </Td>
+                        <Td align="right">
+                          <div className="ml-auto h-5 w-10 animate-pulse rounded bg-zinc-200" />
+                        </Td>
+                      </tr>
+                    ))}
+
+                  {isError && (
+                    <tr>
+                      <Td colSpan={4}>
+                        <span className="text-red-600">Gagal memuat data.</span>
                       </Td>
-                      <Td>{r.start}</Td>
-                      <Td>{r.end}</Td>
-                      <Td align="right">
-                        <span
-                          className={`inline-flex min-w-[36px] justify-center rounded-md px-2 py-0.5 font-semibold ${
-                            r.score === "-"
-                              ? "bg-zinc-100 text-zinc-500"
-                              : "bg-indigo-600/10 text-indigo-700 ring-1 ring-indigo-600/15"
-                          }`}
-                        >
-                          {r.score}
+                    </tr>
+                  )}
+
+                  {!isLoading && !isError && latestTop5.length === 0 && (
+                    <tr>
+                      <Td colSpan={4}>
+                        <span className="text-zinc-600">
+                          Belum ada hasil latihan.
                         </span>
                       </Td>
                     </tr>
-                  ))}
+                  )}
+
+                  {!isLoading &&
+                    !isError &&
+                    latestTop5.map((r, i) => {
+                      const score =
+                        typeof r.grade === "number" && !Number.isNaN(r.grade)
+                          ? String(r.grade)
+                          : "—";
+                      return (
+                        <tr
+                          key={r.id}
+                          className={i % 2 ? "bg-zinc-50/40" : "bg-white/50"}
+                        >
+                          <Td>
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-indigo-500/70" />
+                              {r.test_details?.title ?? "—"}
+                            </span>
+                          </Td>
+                          <Td>{formatDateTime(r.start_date)}</Td>
+                          <Td>
+                            {formatDateTime(r.end_date ?? r.updated_at ?? null)}
+                          </Td>
+                          <Td align="right">
+                            <span
+                              className={`inline-flex min-w-[36px] justify-center rounded-md px-2 py-0.5 font-semibold ${
+                                score === "—"
+                                  ? "bg-zinc-100 text-zinc-500"
+                                  : "bg-indigo-600/10 text-indigo-700 ring-1 ring-indigo-600/15"
+                              }`}
+                            >
+                              {score}
+                            </span>
+                          </Td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -295,12 +368,15 @@ function Th({
 function Td({
   children,
   align = "left",
+  colSpan,
 }: {
   children: React.ReactNode;
   align?: "left" | "right";
+  colSpan?: number;
 }) {
   return (
     <td
+      colSpan={colSpan}
       className={`px-4 py-3 text-zinc-700 ${
         align === "right" ? "text-right" : "text-left"
       }`}
