@@ -1,0 +1,222 @@
+"use client";
+
+import * as React from "react";
+import Image from "next/image";
+import { useSession } from "next-auth/react";
+import {
+  IconBook,
+  IconBrandDatabricks,
+  IconDashboard,
+  IconDatabase,
+  IconFolderQuestion,
+  IconLayoutDashboard,
+  IconSettings,
+  IconUserCog,
+  IconUsersGroup,
+  IconZoomQuestion,
+  type Icon as TablerIcon,
+} from "@tabler/icons-react";
+
+import { NavMain } from "@/components/nav-main";
+import { NavSecondary } from "@/components/nav-secondary";
+import { NavUser } from "@/components/nav-user";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+
+/* =========================
+ * Types
+ * =======================*/
+type RoleName = "superadmin" | "user";
+
+type IconType =
+  | typeof IconDashboard
+  | typeof IconDatabase
+  | typeof IconSettings
+  | typeof IconUsersGroup
+  | TablerIcon; // fallback kalau lib mengekspor `Icon`
+
+type NavChild = {
+  title: string;
+  url: string;
+};
+
+type NavItem = {
+  title: string;
+  url: string;
+  icon: IconType;
+  children?: NavChild[];
+};
+
+type SecondaryItem = {
+  title: string;
+  url: string;
+  icon: IconType;
+};
+
+type MenuBundle = {
+  navMain: NavItem[];
+  navSecondary: SecondaryItem[];
+};
+
+/* =========================
+ * Menu by Role
+ * =======================*/
+const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
+  superadmin: {
+    navMain: [
+      {
+        title: "Dashboard",
+        url: "/cms/dashboard",
+        icon: IconLayoutDashboard,
+      },
+      {
+        title: "Data Siswa",
+        url: "#",
+        icon: IconBrandDatabricks,
+        children: [
+          {
+            title: "Daftar Siswa",
+            url: "/cms/student",
+          },
+          { title: "Sekolah", url: "/cms/school" },
+          { title: "Kelas", url: "/cms/class" },
+        ],
+      },
+      {
+        title: "LMS",
+        url: "/cms/lms",
+        icon: IconFolderQuestion,
+      },
+      {
+        title: "TryOut",
+        url: "/cms/tryout",
+        icon: IconZoomQuestion,
+      },
+      {
+        title: "Bank Soal",
+        url: "/category-questions",
+        icon: IconBook,
+        children: [
+          { title: "Kategori Soal", url: "/cms/category-questions" },
+          { title: "Soal", url: "/cms/questions" },
+        ],
+      },
+      {
+        title: "Master",
+        url: "#",
+        icon: IconDatabase,
+        children: [
+          { title: "Mata Pelajaran", url: "/cms/mata-pelajaran" },
+          { title: "Sub Mata Pelajaran", url: "/cms/sub-mata-pelajaran" },
+        ],
+      },
+      {
+        title: "Manajemen User",
+        url: "#",
+        icon: IconUserCog,
+        children: [
+          { title: "Users", url: "/cms/users" },
+          { title: "Roles", url: "/cms/roles" },
+        ],
+      },
+    ],
+    navSecondary: [
+      {
+        title: "Settings",
+        url: "/setting",
+        icon: IconSettings,
+      },
+    ],
+  },
+
+  // ⛔ role "user" hanya boleh akses 3 menu berikut:
+  user: {
+    navMain: [
+      {
+        title: "Dashboard",
+        url: "/dashboard", // gunakan dashboard umum untuk user
+        icon: IconDashboard,
+      },
+      {
+        title: "Surat Cuti",
+        url: "/surat-cuti",
+        icon: IconDashboard,
+      },
+      {
+        title: "Cuti Luar Kota",
+        url: "/cuti-luar-kota",
+        icon: IconDashboard,
+      },
+    ],
+    navSecondary: [
+      {
+        title: "Settings",
+        url: "/setting",
+        icon: IconSettings,
+      },
+    ],
+  },
+};
+
+/* =========================
+ * Komponen
+ * =======================*/
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+  const { data: session } = useSession();
+
+  // Ambil role pertama dari session (contoh struktur: session.user.roles[0].name)
+  const roleName: RoleName =
+    (session?.user as unknown as { roles?: Array<{ name?: string }> })
+      ?.roles?.[0]?.name === "superadmin"
+      ? "superadmin"
+      : "user"; // default aman: user
+
+  const menus = NAV_BY_ROLE[roleName];
+
+  const userForSidebar = {
+    name: session?.user?.name ?? "CBT Next",
+    email: session?.user?.email ?? "user@example.com",
+    avatar: "/icon-marketing.png",
+  };
+
+  return (
+    <Sidebar collapsible="offcanvas" {...props}>
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              className="data-[slot=sidebar-menu-button]:!p-1.5"
+            >
+              <a href="#">
+                <Image
+                  src="/icon-marketing.png"
+                  alt="Pengajuan Cuti"
+                  width={32}
+                  height={32}
+                />
+                <span className="text-base font-bold">CBT Next</span>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <NavMain items={menus.navMain} />
+        <NavSecondary items={menus.navSecondary} className="mt-auto" />
+      </SidebarContent>
+
+      <SidebarFooter>
+        <NavUser user={userForSidebar} />
+      </SidebarFooter>
+    </Sidebar>
+  );
+}

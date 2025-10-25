@@ -1,0 +1,9 @@
+{
+  "usersCount": 25,
+  "productsCount": 8,
+  "applications": {
+    "pending": 12,
+    "approved": 30,
+    "rejected": 5
+  }
+}

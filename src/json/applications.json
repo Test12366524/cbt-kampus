@@ -1,0 +1,102 @@
+[
+  {
+    "id": "APP-001",
+    "customerName": "Budi Santoso",
+    "productType": "Funding",
+    "amount": 50000000,
+    "date": "2025-06-20",
+    "status": "Pending",
+    "sales": "Sales A",
+    "coordinator": "Koordinator X"
+  },
+  {
+    "id": "APP-002",
+    "customerName": "Siti Aminah",
+    "productType": "Lending",
+    "amount": 75000000,
+    "date": "2025-06-18",
+    "status": "Approved",
+    "sales": "Sales B",
+    "coordinator": "Koordinator Y"
+  },
+  {
+    "id": "APP-003",
+    "customerName": "Andi Wijaya",
+    "productType": "Lending",
+    "amount": 100000000,
+    "date": "2025-06-15",
+    "status": "Rejected",
+    "sales": "Sales C",
+    "coordinator": "Koordinator X"
+  },
+  {
+    "id": "APP-004",
+    "customerName": "Rina Marlina",
+    "productType": "Funding",
+    "amount": 60000000,
+    "date": "2025-06-14",
+    "status": "Approved",
+    "sales": "Sales A",
+    "coordinator": "Koordinator Z"
+  },
+  {
+    "id": "APP-005",
+    "customerName": "Dedi Kurniawan",
+    "productType": "Lending",
+    "amount": 85000000,
+    "date": "2025-06-13",
+    "status": "Pending",
+    "sales": "Sales B",
+    "coordinator": "Koordinator Y"
+  },
+  {
+    "id": "APP-006",
+    "customerName": "Yuni Lestari",
+    "productType": "Funding",
+    "amount": 72000000,
+    "date": "2025-06-12",
+    "status": "Approved",
+    "sales": "Sales A",
+    "coordinator": "Koordinator X"
+  },
+  {
+    "id": "APP-007",
+    "customerName": "Agus Salim",
+    "productType": "Lending",
+    "amount": 95000000,
+    "date": "2025-06-11",
+    "status": "Rejected",
+    "sales": "Sales C",
+    "coordinator": "Koordinator Y"
+  },
+  {
+    "id": "APP-008",
+    "customerName": "Fitri Andini",
+    "productType": "Funding",
+    "amount": 67000000,
+    "date": "2025-06-10",
+    "status": "Pending",
+    "sales": "Sales A",
+    "coordinator": "Koordinator Z"
+  },
+  {
+    "id": "APP-009",
+    "customerName": "Tono Haryanto",
+    "productType": "Lending",
+    "amount": 80000000,
+    "date": "2025-06-09",
+    "status": "Approved",
+    "sales": "Sales B",
+    "coordinator": "Koordinator X"
+  },
+  {
+    "id": "APP-010",
+    "customerName": "Mega Pratiwi",
+    "productType": "Funding",
+    "amount": 54000000,
+    "date": "2025-06-08",
+    "status": "Approved",
+    "sales": "Sales A",
+    "coordinator": "Koordinator Y"
+  }
+]
