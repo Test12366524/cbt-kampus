@@ -126,8 +126,8 @@ export default function SchoolPage() {
     alertSuccess(
       wasEdit ? "Berhasil Diperbarui" : "Berhasil Dibuat",
       wasEdit
-        ? "Data sekolah berhasil diperbarui."
-        : "Data sekolah berhasil ditambahkan."
+        ? "Data prodi berhasil diperbarui."
+        : "Data prodi berhasil ditambahkan."
     );
   };
 
@@ -139,7 +139,7 @@ export default function SchoolPage() {
       await remove(pendingDelete.id).unwrap();
       setPendingDelete(null);
       refetch();
-      alertSuccess("Berhasil Dihapus", `Sekolah "${name}" telah dihapus.`);
+      alertSuccess("Berhasil Dihapus", `Prodi "${name}" telah dihapus.`);
     } catch (err: unknown) {
       const message =
         (err as { data?: { message?: string } })?.data?.message ??
@@ -154,14 +154,14 @@ export default function SchoolPage() {
 
   return (
     <>
-      <SiteHeader title="Sekolah" />
+      <SiteHeader title="Prodi" />
       <main className="space-y-6 px-4 py-6">
         <Card className="border-border/70 shadow-sm">
           <CardHeader className="gap-3 md:flex md:items-center md:justify-between">
             <div className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" />
               <CardTitle className="text-xl font-semibold tracking-tight">
-                Sekolah
+                Prodi
               </CardTitle>
             </div>
             <div className="flex items-center gap-2">
@@ -223,7 +223,6 @@ export default function SchoolPage() {
                     <TableRow>
                       <TableHead className="w-[240px]">Nama</TableHead>
                       <TableHead>Deskripsi</TableHead>
-                      <TableHead className="w-[260px]">Wilayah</TableHead>{" "}
                       <TableHead className="w-[140px]">Status</TableHead>
                       <TableHead className="w-[160px]">Dibuat</TableHead>
                       <TableHead className="text-right w-[120px]">
@@ -249,9 +248,6 @@ export default function SchoolPage() {
                             </TableCell>
                             <TableCell>
                               <Skeleton className="h-4 w-52" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-5 w-24 rounded-full" />
                             </TableCell>
                             <TableCell>
                               <Skeleton className="h-4 w-24" />
@@ -296,18 +292,6 @@ export default function SchoolPage() {
                             title={s.description ?? ""}
                           >
                             {s.description ?? "-"}
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="text-sm">
-                            <div className="font-medium">
-                              {s.province_name ?? "-"}
-                            </div>
-                            <div className="text-muted-foreground">
-                              {s.regency_name ?? "-"}
-                              {s.district_name ? ` / ${s.district_name}` : ""}
-                            </div>
                           </div>
                         </TableCell>
 
@@ -419,7 +403,7 @@ export default function SchoolPage() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Hapus Sekolah?</AlertDialogTitle>
+              <AlertDialogTitle>Hapus Prodi?</AlertDialogTitle>
               <AlertDialogDescription>
                 Aksi ini tidak bisa dibatalkan. Item:
                 <span className="font-semibold"> {pendingDelete?.name}</span>

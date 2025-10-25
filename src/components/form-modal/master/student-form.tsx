@@ -54,6 +54,7 @@ type StudentUser = {
 type StudentDetailApi = {
   id: number;
   user_id: number;
+  nim: number | string;
   school_id: number | null;
   class_id: number | null;
   status: boolean;
@@ -96,6 +97,7 @@ export default function StudentForm({
   );
   const [classId, setClassId] = React.useState<number | null>(defaultClassId);
   const [name, setName] = React.useState<string>("");
+  const [nim, setNim] = React.useState<number | string>("");
   const [email, setEmail] = React.useState<string>("");
   const [phone, setPhone] = React.useState<string>("");
   const [password, setPassword] = React.useState<string>("");
@@ -107,6 +109,7 @@ export default function StudentForm({
     setSchoolId(student.school_id ?? null);
     setClassId(student.class_id ?? null);
     setName(student.user?.name ?? "");
+    setNim(student.nim ?? "");
     setEmail(student.user?.email ?? "");
     setPhone(student.user?.phone ?? ("" as string));
     setStatus(Boolean(student.status));
@@ -119,6 +122,7 @@ export default function StudentForm({
       setSchoolId(defaultSchoolId);
       setClassId(defaultClassId);
       setName("");
+      setNim("");
       setEmail("");
       setPhone("");
       setPassword("");
@@ -153,8 +157,8 @@ export default function StudentForm({
     if (!schoolId) {
       void Swal.fire({
         icon: "warning",
-        title: "Pilih Sekolah",
-        text: "Field sekolah wajib diisi.",
+        title: "Pilih Prodi",
+        text: "Field prodi wajib diisi.",
       });
       return;
     }
@@ -210,6 +214,7 @@ export default function StudentForm({
       if (isEdit) {
         const payload: {
           school_id?: number;
+          nim?: number | string;
           class_id?: number;
           name?: string;
           email?: string;
@@ -220,6 +225,7 @@ export default function StudentForm({
           password_confirmation?: string;
         } = {
           school_id: schoolId ?? undefined,
+          nim: nim ?? undefined,
           class_id: classId ?? undefined,
           name: name.trim(),
           email: email.trim(),
@@ -237,6 +243,7 @@ export default function StudentForm({
       } else {
         const payload = {
           school_id: schoolId!,
+          nim: nim!,
           class_id: classId!,
           name: name.trim(),
           email: email.trim(),
@@ -307,14 +314,14 @@ export default function StudentForm({
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* school */}
               <div className="space-y-2">
-                <Label>Sekolah</Label>
+                <Label>Prodi</Label>
                 <Combobox<School>
                   value={schoolId}
                   onChange={(v) => setSchoolId(v)}
                   onSearchChange={setSchoolSearch}
                   data={schools}
                   isLoading={loadingSchools}
-                  placeholder="Pilih Sekolah"
+                  placeholder="Pilih Prodi"
                   getOptionLabel={(s) => s.name}
                 />
               </div>
@@ -330,6 +337,16 @@ export default function StudentForm({
                   isLoading={loadingClasses}
                   placeholder="Pilih Kelas"
                   getOptionLabel={(c) => c.name}
+                />
+              </div>
+
+              {/* name */}
+              <div className="space-y-2">
+                <Label>NIM</Label>
+                <Input
+                  value={nim}
+                  onChange={(e) => setNim(e.target.value)}
+                  placeholder="NIM siswa"
                 />
               </div>
 

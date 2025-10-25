@@ -77,15 +77,15 @@ const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
         icon: IconLayoutDashboard,
       },
       {
-        title: "Data Siswa",
+        title: "Data Mahasiswa",
         url: "#",
         icon: IconBrandDatabricks,
         children: [
           {
-            title: "Daftar Siswa",
-            url: "/cms/student",
+            title: "Daftar Mahasiswa",
+            url: "/cms/mahasiswa",
           },
-          { title: "Sekolah", url: "/cms/school" },
+          { title: "Prodi", url: "/cms/prodi" },
           { title: "Kelas", url: "/cms/class" },
         ],
       },
@@ -95,7 +95,7 @@ const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
         icon: IconFolderQuestion,
       },
       {
-        title: "TryOut",
+        title: "Ujian Online",
         url: "/cms/tryout",
         icon: IconZoomQuestion,
       },

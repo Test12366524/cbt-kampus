@@ -189,7 +189,7 @@ export default function StudentsPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // ===== List Sekolah & Kelas =====
+  // ===== List Prodi & Kelas =====
   const { data: schoolListResp, isFetching: loadingSchools } =
     useGetSchoolListQuery({ page: 1, paginate: 100, search: schoolSearch });
   const { data: classListResp, isFetching: loadingClasses } =
@@ -446,7 +446,7 @@ export default function StudentsPage() {
       const name = pendingDelete.name;
       await remove(pendingDelete.id).unwrap();
       setPendingDelete(null);
-      alertSuccess("Berhasil Dihapus", `Siswa "${name}" telah dihapus.`);
+      alertSuccess("Berhasil Dihapus", `Mahasiswa "${name}" telah dihapus.`);
       refetch();
     } catch (err: unknown) {
       const info = extractPayload(err);
@@ -457,7 +457,7 @@ export default function StudentsPage() {
 
   const getSchoolLabel = (id: number | null): string =>
     id == null
-      ? "Semua Sekolah"
+      ? "Semua Prodi"
       : schoolOptions.find((s) => s.id === id)?.label ?? `ID: ${id}`;
   const getClassLabel = (id: number | null): string =>
     id == null
@@ -468,16 +468,16 @@ export default function StudentsPage() {
 
   return (
     <>
-      <SiteHeader title="Siswa" />
+      <SiteHeader title="Mahasiswa" />
       <main className="space-y-6 px-4 py-6">
         <Card className="border-border/70 shadow-sm">
           <CardHeader className="gap-3 md:flex md:items-center md:justify-between">
             <div>
               <CardTitle className="text-xl font-semibold tracking-tight">
-                Siswa
+                Mahasiswa
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Daftar akun <span className="font-medium">Siswa</span>.
+                Daftar akun <span className="font-medium">Mahasiswa</span>.
               </p>
             </div>
 
@@ -493,7 +493,7 @@ export default function StudentsPage() {
               <Button
                 variant="outline"
                 onClick={triggerImport}
-                title="Import Siswa"
+                title="Import Mahasiswa"
                 disabled={importing}
               >
                 <Upload
@@ -522,7 +522,7 @@ export default function StudentsPage() {
               <Button
                 variant="outline"
                 onClick={handleExport}
-                title="Export Siswa"
+                title="Export Mahasiswa"
                 disabled={exporting}
               >
                 <FileDown
@@ -575,7 +575,7 @@ export default function StudentsPage() {
                 />
               </div>
 
-              {/* Filter Sekolah */}
+              {/* Filter Prodi */}
               <div className="lg:col-span-3">
                 <Combobox
                   value={schoolId}
@@ -633,24 +633,6 @@ export default function StudentsPage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Rentang Tanggal (opsional untuk export) */}
-              <div className="lg:col-span-3">
-                <Input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  placeholder="Dari tanggal"
-                />
-              </div>
-              <div className="lg:col-span-3">
-                <Input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  placeholder="Sampai tanggal"
-                />
-              </div>
             </div>
 
             {/* Table */}
@@ -660,11 +642,11 @@ export default function StudentsPage() {
                   <TableHeader className="sticky top-0 bg-muted/40 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
                     <TableRow>
                       <TableHead className="w-[320px]">Akun</TableHead>
-                      <TableHead className="w-[220px]">Sekolah</TableHead>
+                      <TableHead className="w-[320px]">NIM</TableHead>
+                      <TableHead className="w-[160px]">Prodi</TableHead>
                       <TableHead className="w-[180px]">Kelas</TableHead>
                       <TableHead className="w-[160px]">Telepon</TableHead>
                       <TableHead className="w-[120px]">Status</TableHead>
-                      <TableHead className="w-[160px]">Dibuat</TableHead>
                       <TableHead className="text-right w-[120px]">
                         Aksi
                       </TableHead>
@@ -689,6 +671,9 @@ export default function StudentsPage() {
                               <Skeleton className="h-4 w-40" />
                             </TableCell>
                             <TableCell>
+                              <Skeleton className="h-4 w-24" />
+                            </TableCell>
+                            <TableCell>
                               <Skeleton className="h-4 w-32" />
                             </TableCell>
                             <TableCell>
@@ -696,9 +681,6 @@ export default function StudentsPage() {
                             </TableCell>
                             <TableCell>
                               <Skeleton className="h-5 w-20 rounded-full" />
-                            </TableCell>
-                            <TableCell>
-                              <Skeleton className="h-4 w-24" />
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
@@ -753,6 +735,13 @@ export default function StudentsPage() {
 
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
+                            <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                            {u.nim}
+                          </div>
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="flex items-center gap-1 text-sm">
                             <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
                             {u.school_name}
                           </div>
@@ -784,13 +773,6 @@ export default function StudentsPage() {
                               Inactive
                             </Badge>
                           )}
-                        </TableCell>
-
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm">
-                            <CalendarRange className="h-3.5 w-3.5 text-muted-foreground" />
-                            {displayDate(u.created_at)}
-                          </div>
                         </TableCell>
 
                         <TableCell className="text-right">
@@ -916,7 +898,7 @@ export default function StudentsPage() {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Hapus Siswa?</AlertDialogTitle>
+              <AlertDialogTitle>Hapus Mahasiswa?</AlertDialogTitle>
               <AlertDialogDescription>
                 Aksi ini tidak bisa dibatalkan. Item:
                 <span className="font-semibold"> {pendingDelete?.name}</span>

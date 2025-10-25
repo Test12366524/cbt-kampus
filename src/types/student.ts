@@ -1,6 +1,7 @@
 export interface Student {
   id: number;
   user_id: number;
+  nim: number | string;
   school_id: number;
   status: boolean | number;
   created_at: string;
