@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useCreateSchoolMutation,
   useUpdateSchoolMutation,
@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { RegionPickers } from "@/components/admin-components/region-pickers";
 
 type Props = {
   open: boolean;

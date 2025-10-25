@@ -102,7 +102,7 @@ export type TestDetails = {
   total_time: number;
   total_questions: number;
   pass_grade: number;
-  shuffle_questions: boolean;
+  shuffle_questions: boolean | number;
   assessment_type: string; // "point" | ...
   timer_type: "per_test" | "per_category";
   score_type: string; // "irt" | ...

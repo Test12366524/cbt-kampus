@@ -48,7 +48,7 @@ export interface ParticipantTestDetails {
   max_attempts: string | null;
   assessment_type: string; // mis. "point"
   total_questions: number;
-  shuffle_questions: boolean;
+  shuffle_questions: boolean | number;
   total_participants: number;
   is_explanation_released: boolean;
 }

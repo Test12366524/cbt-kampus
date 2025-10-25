@@ -204,12 +204,13 @@ export default function TryoutForm({
           </div>
           <div className="flex items-center gap-2 mt-6">
             <Switch
-              checked={form.shuffle_questions}
-              onCheckedChange={(v) =>
-                setForm({ ...form, shuffle_questions: v })
-              }
               id="shuffle"
+              checked={Boolean(form.shuffle_questions)}
+              onCheckedChange={
+                (v) => setForm({ ...form, shuffle_questions: v })
+              }
             />
+
             <Label htmlFor="shuffle">Shuffle Questions</Label>
           </div>
         </div>
