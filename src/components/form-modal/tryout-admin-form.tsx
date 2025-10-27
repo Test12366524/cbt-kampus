@@ -78,7 +78,7 @@ export default function TryoutForm({
       { refetchOnMountOrArgChange: true }
     );
   const schools: School[] = schoolListResp?.data ?? [];
-  // Jika "initial" berubah karena ganti mode (edit -> create, dsb)
+  
   React.useEffect(() => {
     setForm(initial);
   }, [initial]);
