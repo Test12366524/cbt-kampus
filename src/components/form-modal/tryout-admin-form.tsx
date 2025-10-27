@@ -7,13 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combo-box";
 
 import type { School } from "@/types/master/school";
@@ -76,10 +69,7 @@ export default function TryoutForm({
   onCancel,
   onSubmit,
 }: Props) {
-  // Kelola state LOKAL agar tak gampang reset saat parent re-render
   const [form, setForm] = React.useState<FormState>(initial);
-
-  const [schoolId, setSchoolId] = React.useState<number | null>(null);
 
   const [schoolSearch, setSchoolSearch] = React.useState<string>("");
   const { data: schoolListResp, isFetching: loadingSchools } =
@@ -88,7 +78,7 @@ export default function TryoutForm({
       { refetchOnMountOrArgChange: true }
     );
   const schools: School[] = schoolListResp?.data ?? [];
-  // Jika "initial" berubah karena ganti mode (edit -> create, dsb)
+  
   React.useEffect(() => {
     setForm(initial);
   }, [initial]);

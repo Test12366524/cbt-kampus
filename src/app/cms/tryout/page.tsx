@@ -29,7 +29,6 @@ import {
   PenLine,
   Trash2,
   Plus,
-  PlayCircle,
   RefreshCw,
   Trophy,
 } from "lucide-react";
