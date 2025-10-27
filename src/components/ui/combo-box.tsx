@@ -17,9 +17,11 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ChevronsUpDown } from "lucide-react";
 
 interface ComboboxProps<T extends { id: number | string }> {
-  value: number | null; // <- state pakai number
+  value: number | null; // state pakai number
   onChange: (value: number) => void;
   onSearchChange?: (query: string) => void;
+  /** Dipanggil OTOMATIS setiap kali popover dibuka, cocok untuk refetch RTK Query */
+  onOpenRefetch?: () => void;
   data: T[];
   isLoading?: boolean;
   placeholder?: string;
@@ -30,6 +32,7 @@ export function Combobox<T extends { id: number | string }>({
   value,
   onChange,
   onSearchChange,
+  onOpenRefetch,
   data,
   isLoading,
   placeholder = "Pilih Data",
@@ -37,7 +40,12 @@ export function Combobox<T extends { id: number | string }>({
 }: ComboboxProps<T>) {
   const [open, setOpen] = React.useState(false);
 
-  // ➜ KUNCI: samakan tipe saat mencari selected
+  // Panggil refetch setiap kali dibuka
+  React.useEffect(() => {
+    if (open) onOpenRefetch?.();
+  }, [open, onOpenRefetch]);
+
+  // samakan tipe saat mencari selected
   const selected = React.useMemo(
     () => data.find((item) => Number(item.id) === Number(value)),
     [data, value]
@@ -45,18 +53,18 @@ export function Combobox<T extends { id: number | string }>({
 
   const defaultOptionLabel = (item: T) => {
     if ("name" in item && "email" in item) {
-      return `${(item as { name: string; email: string }).name} (${
-        (item as { name: string; email: string }).email
-      })`;
+      const i = item as unknown as { name: string; email: string };
+      return `${i.name} (${i.email})`;
     }
     if ("name" in item) {
-      return (item as { name: string }).name;
+      const i = item as unknown as { name: string };
+      return i.name;
     }
     return `ID: ${item.id}`;
   };
 
   return (
-    // ⬇️ Penting: modal={false} untuk dipakai di dalam Dialog
+    // modal={false} agar nyaman dipakai di dalam Dialog
     <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverTrigger asChild>
         <Button
@@ -64,6 +72,10 @@ export function Combobox<T extends { id: number | string }>({
           variant="outline"
           role="combobox"
           className="justify-between w-full"
+          // ekstra guard: kalau sedang tertutup dan user klik, refetch segera
+          onClick={() => {
+            if (!open) onOpenRefetch?.();
+          }}
         >
           {selected
             ? (getOptionLabel ?? defaultOptionLabel)(selected)
@@ -75,12 +87,12 @@ export function Combobox<T extends { id: number | string }>({
       <PopoverContent
         className="w-[var(--radix-popover-trigger-width)] p-0"
         align="start"
-        // cegah autofocus yang kadang bikin fokus lompat saat di Dialog
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Cari..."
+            onFocus={() => onOpenRefetch?.()}
             onValueChange={(val) => {
               if (onSearchChange) onSearchChange(val);
             }}
@@ -102,7 +114,7 @@ export function Combobox<T extends { id: number | string }>({
                   // value dipakai untuk keyboard nav; tetap string
                   value={String(item.id)}
                   onSelect={(val) => {
-                    // ➜ KUNCI: coerce dari string ke number
+                    // coerce dari string ke number
                     const picked = Number(val);
                     onChange(Number.isNaN(picked) ? idNum : picked);
                     setOpen(false);

@@ -1,8 +1,9 @@
 "use client";
 
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation"; // 🆕
 import Swal from "sweetalert2";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
@@ -86,10 +87,28 @@ const getErrMsg = (e: unknown): string => {
 };
 
 export default function QuestionsPage() {
+  const router = useRouter(); // 🆕
+  const sp = useSearchParams(); // 🆕
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
+
+  // 🆕 Hydrate categoryId dari URL saat mount & saat URL berubah
+  useEffect(() => {
+    const cid = sp.get("category_id");
+    setCategoryId(cid ? Number(cid) : null);
+  }, [sp]);
+
+  // 🆕 Tulis balik category_id ke URL saat user ganti kategori
+  useEffect(() => {
+    const curr = new URLSearchParams(sp.toString());
+    if (categoryId) curr.set("category_id", String(categoryId));
+    else curr.delete("category_id");
+    // Hindari push history baru; gunakan replace
+    router.replace(`/cms/questions?${curr.toString()}`);
+  }, [categoryId, router, sp]);
 
   // ==== Categories ====
   const {
@@ -109,12 +128,19 @@ export default function QuestionsPage() {
     data: qResp,
     isFetching,
     refetch,
-  } = useGetQuestionListQuery({
-    page,
-    paginate: 10,
-    search: query,
-    // question_category_id: categoryId ?? undefined, // opsional: filter di server
-  });
+  } = useGetQuestionListQuery(
+    {
+      page,
+      paginate: 10,
+      search: query,
+      // question_category_id: categoryId ?? undefined, // opsional server-side
+    },
+    {
+      // 🆕 selalu ambil data terbaru saat mount/arg change/focus
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+    }
+  );
 
   const [remove] = useDeleteQuestionMutation();
 
@@ -167,7 +193,7 @@ export default function QuestionsPage() {
     try {
       await remove(id).unwrap();
       toast("success", "Berhasil dihapus");
-      refetch();
+      refetch(); // otomatis update daftar
     } catch (e: unknown) {
       toast("error", "Gagal menghapus", getErrMsg(e));
     }
@@ -195,13 +221,12 @@ export default function QuestionsPage() {
         question_category_id: categoryId,
       }).unwrap();
 
-      // Umumnya server mengembalikan job async
       const msg =
         (typeof resp?.data === "string" && resp.data) ||
         resp?.message ||
         "Import diproses.";
       toast("success", "Success", msg);
-      refetch();
+      refetch(); // 🆕 langsung update daftar
     } catch (err: unknown) {
       toast("error", "Gagal memulai import", getErrMsg(err));
     }
@@ -301,7 +326,7 @@ export default function QuestionsPage() {
                 Export
               </Button>
 
-              {/* Refresh */}
+              {/* Refresh manual (opsional) */}
               <Button
                 variant="outline"
                 size="icon"

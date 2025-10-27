@@ -10,11 +10,11 @@ import {
   useDeleteTestMutation,
 } from "@/services/tryout/test.service";
 import { useExportTestMutation } from "@/services/tryout/export-test.service";
+import { useGetSchoolListQuery } from "@/services/master/school.service"; // 🆕
 import type { Test } from "@/types/tryout/test";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,13 +35,15 @@ import {
 import Pager from "@/components/ui/tryout-pagination";
 import ActionIcon from "@/components/ui/action-icon";
 import { SiteHeader } from "@/components/site-header";
-import { formatDate } from "@/lib/format-utils";
+import { displayDate } from "@/lib/format-utils";
 import TryoutForm, {
   FormState,
   TimerType,
   ScoreType,
   AssessmentType,
 } from "@/components/form-modal/tryout-admin-form";
+
+import { Combobox } from "@/components/ui/combo-box";
 
 type TestPayload = {
   school_id: number;
@@ -85,11 +87,28 @@ const emptyForm: FormState = {
   is_explanation_released: false,
 };
 
+type School = { id: number; name: string; email?: string }; // 🆕 tipe ringan untuk Combobox
+
 export default function TryoutPage() {
   const [page, setPage] = useState(1);
   const [paginate, setPaginate] = useState(10);
   const [search, setSearch] = useState("");
   const [searchBySpecific, setSearchBySpecific] = useState("");
+
+  // 🆕 state filter Prodi
+  const [schoolId, setSchoolId] = useState<number | null>(null);
+  const [schoolSearch, setSchoolSearch] = useState("");
+
+  // 🆕 ambil list prodi (school)
+  const { data: schoolResp, isLoading: loadingSchools } = useGetSchoolListQuery(
+    {
+      page: 1,
+      paginate: 100, // cukup besar untuk dropdown
+      search: schoolSearch || "",
+    }
+  );
+
+  const schools: School[] = useMemo(() => schoolResp?.data ?? [], [schoolResp]);
 
   const { data, isLoading, refetch } = useGetTestListQuery({
     page,
@@ -98,6 +117,8 @@ export default function TryoutPage() {
     searchBySpecific,
     orderBy: "tests.updated_at",
     orderDirection: "desc",
+    // 🆕 terapkan filter school_id bila ada
+    school_id: schoolId ?? undefined,
   });
 
   const [createTest, { isLoading: creating }] = useCreateTestMutation();
@@ -254,7 +275,6 @@ export default function TryoutPage() {
             {/* Filter */}
             <div className="flex flex-col md:flex-row gap-3 md:items-center">
               <div className="flex items-center gap-2">
-                <Label className="whitespace-nowrap">Records</Label>
                 <select
                   className="h-9 rounded-md border bg-background px-2"
                   value={paginate}
@@ -269,18 +289,49 @@ export default function TryoutPage() {
                   <option value={50}>50</option>
                 </select>
               </div>
-              <div className="ml-auto w-full md:w-80 flex gap-2">
+
+              <div className="ml-auto w-full flex gap-2">
                 <Input
                   placeholder="Search…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && refetch()}
                 />
+                {/* 🆕 Filter Prodi (school_id) */}
+                <div className="flex items-center gap-2 w-full md:w-80">
+                  <div className="flex w-full gap-2">
+                    <Combobox<School>
+                      value={schoolId}
+                      onChange={(v) => {
+                        setSchoolId(v);
+                        setPage(1);
+                      }}
+                      onSearchChange={setSchoolSearch}
+                      data={schools}
+                      isLoading={loadingSchools}
+                      placeholder="Semua Prodi"
+                      getOptionLabel={(s) => s.name}
+                    />
+                    {schoolId !== null && (
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={() => {
+                          setSchoolId(null);
+                          setPage(1);
+                        }}
+                      >
+                        Reset
+                      </Button>
+                    )}
+                  </div>
+                </div>
                 <Button
                   variant="outline"
                   onClick={() => {
                     setSearch("");
                     setSearchBySpecific("");
+                    setSchoolId(null); // 🆕 reset filter prodi juga
                     setPage(1);
                     refetch();
                   }}
@@ -295,10 +346,9 @@ export default function TryoutPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr className="text-left">
-                    <th className="p-3">Nama</th>
+                    <th className="p-3">Judul</th>
+                    <th className="p-3">Prodi</th>
                     <th className="p-3">Waktu (detik)</th>
-                    <th className="p-3">Timer</th>
-                    <th className="p-3">Score</th>
                     <th className="p-3">Shuffle</th>
                     <th className="p-3">Mulai</th>
                     <th className="p-3">Berakhir</th>
@@ -321,22 +371,13 @@ export default function TryoutPage() {
                             {t.sub_title || "-"}
                           </div>
                         </td>
+                        <td className="p-3">{t.school_name}</td>
                         <td className="p-3">
                           {t.timer_type === "per_category" ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             t.total_time
                           )}
-                        </td>
-                        <td className="p-3">
-                          <Badge variant="secondary" className="uppercase">
-                            {t.timer_type.replace("_", " ")}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <Badge variant="secondary" className="uppercase">
-                            {t.score_type}
-                          </Badge>
                         </td>
                         <td className="p-3">
                           <Badge
@@ -348,10 +389,10 @@ export default function TryoutPage() {
                           </Badge>
                         </td>
                         <td className="p-3">
-                          {t.start_date ? formatDate(t.start_date) : "-"}
+                          {t.start_date ? displayDate(t.start_date) : "-"}
                         </td>
                         <td className="p-3">
-                          {t.end_date ? formatDate(t.end_date) : "-"}
+                          {t.end_date ? displayDate(t.end_date) : "-"}
                         </td>
                         <td className="p-3">
                           <div className="flex gap-1 justify-end">
@@ -363,7 +404,6 @@ export default function TryoutPage() {
                               </ActionIcon>
                             </Link>
 
-                            {/* NEW: Rank */}
                             <Link href={`/cms/tryout/rank?test_id=${t.id}`}>
                               <ActionIcon label="Rank">
                                 <Trophy className="h-4 w-4" />
@@ -424,7 +464,9 @@ export default function TryoutPage() {
           <DialogContent className="max-h-[98vh] overflow-y-auto sm:max-w-2xl md:max-w-3xl xl:max-w-5xl">
             <DialogHeader>
               <DialogTitle>
-                {editing ? "Form Ubah Ujian Online" : "Form Tambah Ujian Online"}
+                {editing
+                  ? "Form Ubah Ujian Online"
+                  : "Form Tambah Ujian Online"}
               </DialogTitle>
             </DialogHeader>
 

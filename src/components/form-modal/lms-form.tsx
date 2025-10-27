@@ -10,6 +10,7 @@ import {
 
 import { useGetSubjectListQuery } from "@/services/master/mapel.service";
 import { useGetSubjectSubListQuery } from "@/services/master/submapel.service";
+import { useGetSchoolListQuery } from "@/services/master/school.service"; // 🆕 prodi
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,11 +41,75 @@ type SubjectSub = {
   subject_id: number;
 };
 
+type School = {
+  id: number;
+  name: string;
+  email?: string | null;
+};
+
 export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
   // mode
   const isEdit = Boolean(initialData?.id);
 
-  // form state
+  // ====== Prodi (School) ====== 🆕
+  const [schoolId, setSchoolId] = useState<number | null>(
+    initialData?.school_id ?? null
+  );
+  const [schoolSearch, setSchoolSearch] = useState("");
+
+  const {
+    data: schoolResp,
+    isFetching: loadingSchool,
+    refetch: refetchSchool,
+  } = useGetSchoolListQuery({
+    page: 1,
+    paginate: 50,
+    search: schoolSearch,
+  });
+
+  const schoolsRaw: School[] = (
+    Array.isArray(schoolResp?.data) ? (schoolResp!.data as unknown[]) : []
+  )
+    .map((s: unknown): School | null => {
+      if (typeof s !== "object" || s === null) return null;
+      const r = s as Record<string, unknown>;
+
+      const idRaw = r.id;
+      const idNum =
+        typeof idRaw === "number"
+          ? idRaw
+          : typeof idRaw === "string"
+          ? Number(idRaw)
+          : NaN;
+      if (!Number.isFinite(idNum)) return null;
+
+      const nameRaw = (r.name ?? r.school_name) as unknown;
+      const emailRaw = r.email as unknown;
+
+      return {
+        id: idNum,
+        name: typeof nameRaw === "string" ? nameRaw : "-",
+        email: typeof emailRaw === "string" ? emailRaw : null,
+      };
+    })
+    .filter((x): x is School => x !== null);
+
+  // fallback agar value terpilih muncul saat edit meski tidak di page 1
+  const schoolOptions = useMemo<School[]>(() => {
+    if (isEdit && schoolId && !schoolsRaw.some((s) => s.id === schoolId)) {
+      return [
+        {
+          id: schoolId,
+          name: initialData?.school_name ?? "—",
+          email: null,
+        },
+        ...schoolsRaw,
+      ];
+    }
+    return schoolsRaw;
+  }, [isEdit, schoolId, schoolsRaw, initialData]);
+
+  // ====== Subject / Sub Subject ======
   const [subjectId, setSubjectId] = useState<number | null>(
     initialData?.subject_id ?? null
   );
@@ -70,7 +135,8 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
     data: subjectResp,
     isFetching: loadingSubject,
     refetch: refetchSubject,
-  } = useGetSubjectListQuery({ page: 1, paginate: 50, search: subjectSearch }); // perbesar paginate
+  } = useGetSubjectListQuery({ page: 1, paginate: 50, search: subjectSearch });
+
   const subjects: Subject[] = (subjectResp?.data ?? []).map((s) => ({
     ...s,
     id: Number(s.id),
@@ -85,7 +151,7 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
   } = useGetSubjectSubListQuery(
     {
       page: 1,
-      paginate: 50, // perbesar paginate
+      paginate: 50,
       search: subSearch,
       subject_id: subjectId ?? undefined,
     },
@@ -96,7 +162,7 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
     id: Number(s.id),
   }));
 
-  // ➜ HANYA reset sub jika user mengganti subject (bukan saat initial render)
+  // reset sub jika subject berubah (bukan saat initial render)
   const prevSubjectIdRef = useRef<number | null>(
     initialData?.subject_id ?? null
   );
@@ -114,7 +180,7 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subjectId]);
 
-  // ➜ Fallback option saat edit kalau selected tidak muncul di list (paginasi)
+  // fallback option saat edit jika selected tidak ada di list
   const subjectOptions = useMemo<Subject[]>(() => {
     if (isEdit && subjectId && !subjects.some((s) => s.id === subjectId)) {
       return [
@@ -165,9 +231,11 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
 
   const getOptionLabelSubject = (s: Subject) => `${s.code ?? "-"} — ${s.name}`;
   const getOptionLabelSub = (s: SubjectSub) => `${s.code ?? "-"} — ${s.name}`;
+  const getOptionLabelSchool = (s: School) => s.name; // 🆕
 
   const buildFormData = (): FormData => {
     const fd = new FormData();
+    if (schoolId !== null) fd.append("school_id", String(schoolId)); // 🆕
     if (subjectId !== null) fd.append("subject_id", String(subjectId));
     if (subjectSubId !== null)
       fd.append("subject_sub_id", String(subjectSubId));
@@ -180,13 +248,13 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
   };
 
   const onSubmit = async () => {
-    // Validasi hanya saat create
+    // Validasi saat create: school, subject, sub, title wajib
     if (!isEdit) {
-      if (!subjectId || !subjectSubId || !title.trim()) {
+      if (!schoolId || !subjectId || !subjectSubId || !title.trim()) {
         await Swal.fire({
           icon: "warning",
           title: "Lengkapi Data",
-          text: "Subject, Sub Subject, dan Title wajib diisi.",
+          text: "Prodi, Subject, Sub Subject, dan Title wajib diisi.",
         });
         return;
       }
@@ -204,10 +272,9 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
         title: "Berhasil",
         text: "Data tersimpan.",
       });
-      onSuccess?.(); // ⬅️ Page yang akan menutup modal
+      onSuccess?.();
     } catch (e) {
       console.error(e);
-      // ⬇️ Modal TETAP TERBUKA (tidak memanggil onSuccess/onCancel)
       await Swal.fire({
         icon: "error",
         title: "Gagal",
@@ -220,7 +287,25 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
 
   return (
     <div className="space-y-4 max-h-[80vh] overflow-y-auto">
-      {/* Subject */}
+      {/* Prodi (School) 🆕 */}
+      <div>
+        <Label className="pb-2">Prodi</Label>
+        <Combobox<School>
+          value={schoolId}
+          onChange={(v) => setSchoolId(v)}
+          onSearchChange={(q) => {
+            setSchoolSearch(q);
+            refetchSchool();
+          }}
+          onOpenRefetch={refetchSchool}
+          data={schoolOptions}
+          isLoading={loadingSchool}
+          placeholder="Pilih Prodi"
+          getOptionLabel={getOptionLabelSchool}
+        />
+      </div>
+
+      {/* Subject & Sub Subject */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label className="pb-2">Jurusan</Label>
@@ -231,6 +316,7 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
               setSubjectSearch(q);
               refetchSubject();
             }}
+            onOpenRefetch={refetchSubject}
             data={subjectOptions}
             isLoading={loadingSubject}
             placeholder="Pilih Jurusan"
@@ -255,6 +341,7 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
                     }
                   : undefined
               }
+              onOpenRefetch={refetchSub}
               data={subjectSubOptions}
               isLoading={loadingSub}
               placeholder={

@@ -14,4 +14,6 @@ export interface Lms {
   subject_sub_code: string;
   subject_sub_name: string;
   cover: File | string | null;
+  school_id: number;
+  school_name: string;
 }

@@ -68,7 +68,7 @@ type VoidResponse = {
  * ===================== */
 export const testApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // ✅ Get all (paginated + optional search)
+    // ✅ Get all (paginated + optional search + 🆕 school_id)
     getTestList: builder.query<
       {
         data: Test[];
@@ -84,20 +84,42 @@ export const testApi = apiSlice.injectEndpoints({
         searchBySpecific?: string;
         orderBy?: string;
         orderDirection?: "asc" | "desc";
+        school_id?: number | null; // 🆕
       }
     >({
-      query: ({ page, paginate, search, searchBySpecific, orderBy, orderDirection }) => {
+      query: ({
+        page,
+        paginate,
+        search,
+        searchBySpecific,
+        orderBy,
+        orderDirection,
+        school_id, // 🆕
+      }) => {
         const qs = new URLSearchParams();
+
+        // base params
         qs.set("page", String(page));
         qs.set("paginate", String(paginate));
-        if (search && search.trim()) qs.set("search", search.trim());
-        if (searchBySpecific && searchBySpecific.trim()) {
-          qs.set("searchBySpecific", searchBySpecific.trim());
+
+        // 🆕 jika ada school_id, pakai pola searchBySpecific=school_id & search=<id>
+        if (typeof school_id === "number") {
+          qs.set("searchBySpecific", "school_id");
+          qs.set("search", String(school_id));
+        } else {
+          // fallback ke perilaku lama
+          if (search && search.trim()) qs.set("search", search.trim());
+          if (searchBySpecific && searchBySpecific.trim()) {
+            qs.set("searchBySpecific", searchBySpecific.trim());
+          }
         }
+
         if (orderBy && orderBy.trim()) qs.set("orderBy", orderBy.trim());
         if (orderDirection && orderDirection.trim()) {
           qs.set("order", orderDirection.trim());
         }
+
+        // contoh hasil: /test/tests?paginate=10&searchBySpecific=school_id&page=1&search=2
         return {
           url: `/test/tests?${qs.toString()}`,
           method: "GET",

@@ -21,6 +21,7 @@ export interface Test {
   is_explanation_released: boolean;
   created_at: string;
   updated_at: string;
+  school_name: string;
 }
 
 // ===== API enums yang dipakai payload =====

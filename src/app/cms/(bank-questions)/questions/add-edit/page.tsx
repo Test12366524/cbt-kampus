@@ -29,6 +29,9 @@ export default function AddEditQuestionsPage() {
   const { data: initial, isFetching: loadingQuestion } =
     useGetQuestionByIdQuery(questionId ?? 0, {
       skip: !questionId,
+      // 🆕 pastikan ambil data fresh saat masuk halaman edit
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
     });
 
   const loading = loadingCat || (!!questionId && loadingQuestion);
@@ -58,7 +61,7 @@ export default function AddEditQuestionsPage() {
                 initial={initial ?? null}
                 defaultCategoryId={defaultCategoryId}
                 onSaved={(saved) => {
-                  // kembali ke list, pertahankan category
+                  // kembali ke list, pertahankan category via query param
                   router.push(
                     `/cms/questions?category_id=${saved.question_category_id}`
                   );
