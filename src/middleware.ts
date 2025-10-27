@@ -95,6 +95,6 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     // Semua path, kecuali yang dikecualikan via negative lookahead
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)",
   ],
 };

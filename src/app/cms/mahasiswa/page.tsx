@@ -17,6 +17,7 @@ import {
   BookOpen,
   Upload,
   FileDown,
+  Printer,
 } from "lucide-react";
 
 import {
@@ -72,6 +73,7 @@ import { SiteHeader } from "@/components/site-header";
 import { Combobox } from "@/components/ui/combo-box";
 
 import StudentForm from "@/components/form-modal/master/student-form";
+import StudentCardModal, { StudentLite } from "@/components/modal/student-card-modal";
 
 const ROLE_STUDENT_ID = 3;
 
@@ -176,6 +178,10 @@ export default function StudentsPage() {
   // Remote search for combobox
   const [schoolSearch, setSchoolSearch] = useState<string>("");
   const [classSearch, setClassSearch] = useState<string>("");
+  const [openCard, setOpenCard] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentLite | null>(
+    null
+  );
 
   // File input for Import
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -773,39 +779,62 @@ export default function StudentsPage() {
                         </TableCell>
 
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <div className="inline-flex gap-2">
-                                <Button
-                                  size="icon"
-                                  variant="outline"
-                                  onClick={() => onEdit(u.id)}
-                                  title="Edit"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="destructive"
+                          <div className="flex justify-end gap-2">
+                            {/* CETAK KARTU */}
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10"
+                              onClick={() => {
+                                setSelectedStudent({
+                                  id: u.id,
+                                  nim: u.nim,
+                                  name: u.name,
+                                  email: u.email,
+                                  phone: u.phone ?? null,
+                                  school_name: u.school_name ?? null,
+                                  class_name: u.class_name ?? null,
+                                });
+                                setOpenCard(true);
+                              }}
+                              title="Cetak Kartu"
+                            >
+                              <Printer className="h-4 w-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <div className="inline-flex gap-2">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => onEdit(u.id)}
+                                    title="Edit"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="destructive"
+                                    onClick={() => setPendingDelete(u)}
+                                    title="Hapus"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-32">
+                                <DropdownMenuItem onClick={() => onEdit(u.id)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
                                   onClick={() => setPendingDelete(u)}
-                                  title="Hapus"
+                                  className="text-red-600 focus:text-red-600"
                                 >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-32">
-                              <DropdownMenuItem onClick={() => onEdit(u.id)}>
-                                <Pencil className="mr-2 h-4 w-4" /> Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => setPendingDelete(u)}
-                                className="text-red-600 focus:text-red-600"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Hapus
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -913,6 +942,15 @@ export default function StudentsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <StudentCardModal
+          open={openCard}
+          onOpenChange={(v) => {
+            setOpenCard(v);
+            if (!v) setSelectedStudent(null);
+          }}
+          student={selectedStudent}
+        />
       </main>
     </>
   );
