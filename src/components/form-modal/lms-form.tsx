@@ -223,7 +223,7 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
       {/* Subject */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label>Mata Pelajaran</Label>
+          <Label className="pb-2">Jurusan</Label>
           <Combobox<Subject>
             value={subjectId}
             onChange={(v) => setSubjectId(v)}
@@ -233,13 +233,13 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
             }}
             data={subjectOptions}
             isLoading={loadingSubject}
-            placeholder="Pilih Mata Pelajaran"
+            placeholder="Pilih Jurusan"
             getOptionLabel={getOptionLabelSubject}
           />
         </div>
 
         <div>
-          <Label>Sub Mata Pelajaran</Label>
+          <Label className="pb-2">Mata Kuliah</Label>
           <div
             aria-disabled={!subEnabled}
             className={!subEnabled ? "pointer-events-none opacity-60" : ""}
@@ -259,8 +259,8 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
               isLoading={loadingSub}
               placeholder={
                 subEnabled
-                  ? "Pilih Sub Mata Pelajaran"
-                  : "Pilih Mata Pelajaran terlebih dahulu"
+                  ? "Pilih Mata Kuliah"
+                  : "Pilih Jurusan terlebih dahulu"
               }
               getOptionLabel={getOptionLabelSub}
             />
@@ -271,11 +271,11 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
       {/* Text fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <Label>Title</Label>
+          <Label className="pb-2">Title</Label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
         <div>
-          <Label>Sub Title</Label>
+          <Label className="pb-2">Sub Title</Label>
           <Input
             value={subTitle}
             onChange={(e) => setSubTitle(e.target.value)}
@@ -327,7 +327,7 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
 
       {/* Description (Rich Text) */}
       <div>
-        <Label>Description</Label>
+        <Label className="pb-2">Description</Label>
         <SunRichText
           value={description}
           onChange={setDescription}
@@ -338,7 +338,7 @@ export default function LmsForm({ initialData, onSuccess, onCancel }: Props) {
       {/* Cover */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="col-span-2">
-          <Label>Cover</Label>
+          <Label className="pb-2">Cover</Label>
           <div className="flex items-center gap-2">
             <Input
               type="file"

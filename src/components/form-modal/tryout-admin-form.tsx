@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Swal from "sweetalert2";
 import dynamic from "next/dynamic";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combo-box";
+
+import type { School } from "@/types/master/school";
+
+import { useGetSchoolListQuery } from "@/services/master/school.service";
 
 /** === Shared enums (sinkron dgn service) === */
 export type TimerType = string; //"per_test" | "per_category"
@@ -21,6 +27,7 @@ export type AssessmentType = string;
 
 /** === Form shape (entity-like, bukan payload API) === */
 export type FormState = {
+  school_id: number;
   title: string;
   sub_title: string;
   slug: string;
@@ -72,6 +79,15 @@ export default function TryoutForm({
   // Kelola state LOKAL agar tak gampang reset saat parent re-render
   const [form, setForm] = React.useState<FormState>(initial);
 
+  const [schoolId, setSchoolId] = React.useState<number | null>(null);
+
+  const [schoolSearch, setSchoolSearch] = React.useState<string>("");
+  const { data: schoolListResp, isFetching: loadingSchools } =
+    useGetSchoolListQuery(
+      { page: 1, paginate: 30, search: schoolSearch },
+      { refetchOnMountOrArgChange: true }
+    );
+  const schools: School[] = schoolListResp?.data ?? [];
   // Jika "initial" berubah karena ganti mode (edit -> create, dsb)
   React.useEffect(() => {
     setForm(initial);
@@ -86,17 +102,19 @@ export default function TryoutForm({
     ) {
       return "Total waktu wajib diisi dan > 0 saat Timer Type = Per Test.";
     }
-    if (form.score_type === "irt") {
-      if (!form.start_date || !form.end_date)
-        return "Start Date dan End Date wajib diisi saat Score Type = IRT.";
-      if (new Date(form.start_date) > new Date(form.end_date))
-        return "Start Date tidak boleh lebih besar dari End Date.";
-    }
     return null;
   };
 
   const handleSubmit = async () => {
     const err = validate();
+    if (!form.school_id) {
+      void Swal.fire({
+        icon: "warning",
+        title: "Pilih Prodi",
+        text: "Field prodi wajib diisi.",
+      });
+      return;
+    }
     if (err) {
       // biar minimal, pakai alert—silakan ganti Swal kalau mau di sini juga
       alert(err);
@@ -114,6 +132,19 @@ export default function TryoutForm({
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Kiri */}
       <div className="space-y-3">
+        <div>
+          <Label>Prodi</Label>
+          <div className="h-2" />
+          <Combobox<School>
+            value={form.school_id}
+            onChange={(value) => setForm({ ...form, school_id: value })}
+            onSearchChange={setSchoolSearch}
+            data={schools}
+            isLoading={loadingSchools}
+            placeholder="Pilih Prodi"
+            getOptionLabel={(s) => s.name}
+          />
+        </div>
         <div>
           <Label>Judul *</Label>
           <div className="h-2" />
@@ -133,45 +164,6 @@ export default function TryoutForm({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Timer Type *</Label>
-            <div className="h-2" />
-            <Select
-              value={form.timer_type}
-              onValueChange={(v: TimerType) =>
-                setForm({ ...form, timer_type: v })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih timer" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="per_test">Per Test</SelectItem>
-                <SelectItem value="per_category">Per Category</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Score Type *</Label>
-            <div className="h-2" />
-            <Select
-              value={form.score_type}
-              onValueChange={(v: ScoreType) =>
-                setForm({ ...form, score_type: v })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih score" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="irt">IRT</SelectItem>
-                <SelectItem value="default">Default</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
             <Label>
               Total Time (detik){" "}
               {form.timer_type === "per_test"
@@ -187,6 +179,14 @@ export default function TryoutForm({
                 setForm({ ...form, total_time: Number(e.target.value) })
               }
             />
+          </div>
+          <div className="flex items-center gap-2 mt-6">
+            <Switch
+              checked={form.is_graded}
+              onCheckedChange={(v) => setForm({ ...form, is_graded: v })}
+              id="graded"
+            />
+            <Label htmlFor="graded">Status: Active (Graded)</Label>
           </div>
         </div>
 
@@ -236,9 +236,9 @@ export default function TryoutForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Start Date {form.score_type === "irt" ? "*" : ""}</Label>
+            <Label>Tanggal Mulai</Label>
             <div className="h-2" />
             <Input
               type="datetime-local"
@@ -247,7 +247,7 @@ export default function TryoutForm({
             />
           </div>
           <div>
-            <Label>End Date {form.score_type === "irt" ? "*" : ""}</Label>
+            <Label>Tanggal Selesai</Label>
             <div className="h-2" />
             <Input
               type="datetime-local"
@@ -256,21 +256,12 @@ export default function TryoutForm({
             />
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={form.is_graded}
-            onCheckedChange={(v) => setForm({ ...form, is_graded: v })}
-            id="graded"
-          />
-          <Label htmlFor="graded">Active (Graded)</Label>
-        </div>
       </div>
 
       {/* Kanan: Rich Text */}
-      <div className="space-y-3">
-        <Label>Description (Rich Text)</Label>
-        <div className="h-2" />
+      <div className="space-y-1">
+        <Label>Deskripsi (Rich Text)</Label>
+        <div className="h-1" />
         <div className="rounded-lg border bg-background">
           <SunEditor
             setContents={form.description} // <-- controlled, TANPA defaultValue

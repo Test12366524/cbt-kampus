@@ -82,15 +82,21 @@ export const testApi = apiSlice.injectEndpoints({
         paginate: number;
         search?: string;
         searchBySpecific?: string;
+        orderBy?: string;
+        orderDirection?: "asc" | "desc";
       }
     >({
-      query: ({ page, paginate, search, searchBySpecific }) => {
+      query: ({ page, paginate, search, searchBySpecific, orderBy, orderDirection }) => {
         const qs = new URLSearchParams();
         qs.set("page", String(page));
         qs.set("paginate", String(paginate));
         if (search && search.trim()) qs.set("search", search.trim());
         if (searchBySpecific && searchBySpecific.trim()) {
           qs.set("searchBySpecific", searchBySpecific.trim());
+        }
+        if (orderBy && orderBy.trim()) qs.set("orderBy", orderBy.trim());
+        if (orderDirection && orderDirection.trim()) {
+          qs.set("order", orderDirection.trim());
         }
         return {
           url: `/test/tests?${qs.toString()}`,

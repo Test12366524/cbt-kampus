@@ -1,5 +1,6 @@
 export interface Test {
   id: number;
+  school_id: number;
   title: string;
   sub_title: string | null;
   slug: string;
@@ -29,6 +30,7 @@ export type AssessmentType = string; // 'irt' | 'standard'
 
 // ===== Payload untuk CREATE/UPDATE ke backend =====
 export interface TestPayload {
+  school_id: number;
   title: string;
   sub_title: string | null;
   shuffle_questions: boolean | number;        // <- sesuai backend

@@ -83,7 +83,7 @@ export default function MapelPage() {
 
   return (
     <>
-      <SiteHeader title="Manajemen Mata Pelajaran" />
+      <SiteHeader title="Manajemen Jurusan" />
       <div className="space-y-6 px-4 py-6">
         {/* Toolbar */}
         <Card>
@@ -118,7 +118,7 @@ export default function MapelPage() {
             <div className="flex items-center gap-2">
               <Button onClick={openCreate}>
                 <Plus className="mr-2 h-4 w-4" />
-                Tambah Mata Pelajaran
+                Tambah Jurusan
               </Button>
             </div>
           </CardContent>
@@ -128,7 +128,7 @@ export default function MapelPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
-              Daftar Mata Pelajaran{" "}
+              Daftar Jurusan{" "}
               {isFetching ? (
                 <Loader2 className="ml-2 inline h-4 w-4 animate-spin" />
               ) : null}
@@ -219,7 +219,7 @@ export default function MapelPage() {
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>
-                                    Hapus Mata Pelajaran?
+                                    Hapus Jurusan?
                                   </AlertDialogTitle>
                                   <AlertDialogDescription>
                                     Tindakan ini tidak dapat dibatalkan. Data
@@ -278,7 +278,7 @@ export default function MapelPage() {
           <DialogContent className="sm:max-w-lg" key={editRow?.id ?? "create"}>
             <DialogHeader>
               <DialogTitle>
-                {editRow ? "Edit Mata Pelajaran" : "Tambah Mata Pelajaran"}
+                {editRow ? "Edit Jurusan" : "Tambah Jurusan"}
               </DialogTitle>
             </DialogHeader>
             <MapelForm

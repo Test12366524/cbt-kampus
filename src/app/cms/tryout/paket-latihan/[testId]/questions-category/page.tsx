@@ -344,8 +344,8 @@ export default function TestCategoriesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Total Questions *</Label>
+                <div className="space-y-2">
+                  <Label>Total Pertanyaan *</Label>
                   <Input
                     type="number"
                     min={0}
@@ -361,7 +361,7 @@ export default function TestCategoriesPage() {
                   />
                 </div>
 
-                <div>
+                <div className="space-y-2">
                   <Label>Order *</Label>
                   <Input
                     type="number"
@@ -377,33 +377,6 @@ export default function TestCategoriesPage() {
                     }
                   />
                 </div>
-              </div>
-
-              <div>
-                <Label>
-                  Durasi per Kategori (detik){" "}
-                  {testDetail?.timer_type === "per_category"
-                    ? "*"
-                    : "(diabaikan: timer per test)"}
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  disabled={testDetail?.timer_type !== "per_category"}
-                  placeholder="0"
-                  value={
-                    testDetail?.timer_type === "per_category"
-                      ? showZeroAsEmpty(form.total_time)
-                      : "" // saat disabled tampil kosong, tidak "0"
-                  }
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      total_time:
-                        e.target.value === "" ? 0 : Number(e.target.value),
-                    })
-                  }
-                />
               </div>
             </div>
 

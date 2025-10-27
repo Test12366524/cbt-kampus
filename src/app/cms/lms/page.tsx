@@ -183,8 +183,8 @@ export default function LmsPage() {
                   <TableRow>
                     <TableHead>Cover</TableHead>
                     <TableHead>Judul</TableHead>
-                    <TableHead>Mata Pelajaran</TableHead>
-                    <TableHead>Sub Mata Pelajaran</TableHead>
+                    <TableHead>Jurusan</TableHead>
+                    <TableHead>Mata Kuliah</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>

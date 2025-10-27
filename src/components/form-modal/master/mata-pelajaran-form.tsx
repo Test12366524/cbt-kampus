@@ -103,10 +103,10 @@ export default function MapelForm({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="name">Nama Mata Pelajaran</Label>
+        <Label htmlFor="name">Nama Jurusan</Label>
         <Input
           id="name"
-          placeholder="Matematika"
+          placeholder="Masukan nama jurusan"
           {...register("name", { required: "Nama wajib diisi" })}
           disabled={loading}
         />

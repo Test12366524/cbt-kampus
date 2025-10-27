@@ -111,7 +111,7 @@ export default function SubMapelPage() {
 
   return (
     <>
-      <SiteHeader title="Sub Mata Pelajaran" />{" "}
+      <SiteHeader title="Mata Kuliah" />{" "}
       <div className="space-y-6 px-4 py-6">
         {/* Toolbar: Search + Filter Subject + Add */}
         <Card>
@@ -155,7 +155,7 @@ export default function SubMapelPage() {
                   onSearchChange={setSubjectSearch}
                   data={subjects}
                   isLoading={subjectLoading}
-                  placeholder="Pilih Mata Pelajaran (filter & preset form)"
+                  placeholder="Pilih Jurusan (filter & preset form)"
                   getOptionLabel={(item) =>
                     `${item.name}${item.code ? ` — ${item.code}` : ""}`
                   }
@@ -163,7 +163,7 @@ export default function SubMapelPage() {
               </div>
               <Button onClick={openCreate} disabled={!filterSubjectId}>
                 <Plus className="mr-2 h-4 w-4" />
-                Tambah Sub Mata Pelajaran
+                Tambah Mata Kuliah
               </Button>
             </div>
           </CardContent>
@@ -173,7 +173,7 @@ export default function SubMapelPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">
-              Daftar Sub Mata Pelajaran{" "}
+              Daftar Mata Kuliah{" "}
               {isFetching ? (
                 <Loader2 className="ml-2 inline h-4 w-4 animate-spin" />
               ) : null}
@@ -185,9 +185,9 @@ export default function SubMapelPage() {
                 <thead>
                   <tr className="border-b text-left">
                     <th className="py-2 px-3">No</th>
-                    <th className="py-2 px-3">Mata Pelajaran</th>
+                    <th className="py-2 px-3">Jurusan</th>
                     <th className="py-2 px-3">Kode</th>
-                    <th className="py-2 px-3">Sub Mata Pelajaran</th>
+                    <th className="py-2 px-3">Mata Kuliah</th>
                     <th className="py-2 px-3">Deskripsi</th>
                     <th className="py-2 px-3">Status</th>
                     <th className="py-2 px-3 w-[110px]">Aksi</th>
@@ -270,7 +270,7 @@ export default function SubMapelPage() {
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>
-                                      Hapus Sub Mapel?
+                                      Hapus Mata Kuliah?
                                     </AlertDialogTitle>
                                     <AlertDialogDescription>
                                       Tindakan ini tidak dapat dibatalkan. Data
@@ -329,7 +329,7 @@ export default function SubMapelPage() {
           <DialogContent className="sm:max-w-lg" key={editRow?.id ?? "create"}>
             <DialogHeader>
               <DialogTitle>
-                {editRow ? "Edit Sub Mapel" : "Tambah Sub Mapel"}
+                {editRow ? "Edit Mata Kuliah" : "Tambah Mata Kuliah"}
               </DialogTitle>
             </DialogHeader>
 

@@ -78,16 +78,8 @@ const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
       },
       {
         title: "Data Mahasiswa",
-        url: "#",
+        url: "/cms/mahasiswa",
         icon: IconBrandDatabricks,
-        children: [
-          {
-            title: "Daftar Mahasiswa",
-            url: "/cms/mahasiswa",
-          },
-          { title: "Prodi", url: "/cms/prodi" },
-          { title: "Kelas", url: "/cms/class" },
-        ],
       },
       {
         title: "LMS",
@@ -109,12 +101,14 @@ const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
         ],
       },
       {
-        title: "Master",
+        title: "Konfigurasi",
         url: "#",
-        icon: IconDatabase,
+        icon: IconZoomQuestion,
         children: [
-          { title: "Mata Pelajaran", url: "/cms/mata-pelajaran" },
-          { title: "Sub Mata Pelajaran", url: "/cms/sub-mata-pelajaran" },
+          { title: "Prodi", url: "/cms/prodi" },
+          { title: "Jurusan", url: "/cms/jurusan" },
+          { title: "Kelas", url: "/cms/class" },
+          { title: "Mata Kuliah", url: "/cms/mata-kuliah" },
         ],
       },
       {

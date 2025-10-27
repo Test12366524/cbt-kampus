@@ -45,6 +45,7 @@ import TryoutForm, {
 } from "@/components/form-modal/tryout-admin-form";
 
 type TestPayload = {
+  school_id: number;
   title: string;
   sub_title: string | null;
   shuffle_questions: boolean | number;
@@ -65,6 +66,7 @@ type TestPayload = {
 };
 
 const emptyForm: FormState = {
+  school_id: 0,
   title: "",
   sub_title: "",
   slug: "",
@@ -74,8 +76,8 @@ const emptyForm: FormState = {
   pass_grade: 70,
   shuffle_questions: false,
   assessment_type: "irt",
-  timer_type: "per_category",
-  score_type: "irt",
+  timer_type: "per_test",
+  score_type: "default",
   start_date: "",
   end_date: "",
   code: "",
@@ -95,6 +97,8 @@ export default function TryoutPage() {
     paginate,
     search,
     searchBySpecific,
+    orderBy: "tests.updated_at",
+    orderDirection: "desc",
   });
 
   const [createTest, { isLoading: creating }] = useCreateTestMutation();
@@ -106,6 +110,7 @@ export default function TryoutPage() {
   const [editing, setEditing] = useState<Test | null>(null);
 
   const toForm = (t: Test): FormState => ({
+    school_id: t.school_id,
     title: t.title,
     sub_title: t.sub_title ?? "",
     slug: t.slug ?? "",
@@ -126,6 +131,7 @@ export default function TryoutPage() {
   });
 
   const toPayload = (f: FormState): TestPayload => ({
+    school_id: f.school_id,
     title: f.title,
     sub_title: f.sub_title || null,
     shuffle_questions: f.shuffle_questions ? 1 : 0,
@@ -231,17 +237,17 @@ export default function TryoutPage() {
 
   return (
     <>
-      <SiteHeader title="Tryout" />
+      <SiteHeader title="Ujian Online" />
       <div className="p-4 md:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-lg">Daftar Tryout</CardTitle>
+            <CardTitle className="text-lg">Daftar Ujian Online</CardTitle>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => refetch()}>
                 <RefreshCw className="mr-2 h-4 w-4" /> Refresh
               </Button>
               <Button onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" /> Buat Tryout
+                <Plus className="mr-2 h-4 w-4" /> Buat Ujian Online
               </Button>
             </div>
           </CardHeader>
@@ -357,13 +363,6 @@ export default function TryoutPage() {
                                 <ListChecks className="h-4 w-4" />
                               </ActionIcon>
                             </Link>
-                            <Link
-                              href={`/cms/tryout/paket-latihan/${t.id}/irt`}
-                            >
-                              <ActionIcon label="Penilaian IRT">
-                                <PlayCircle className="h-4 w-4" />
-                              </ActionIcon>
-                            </Link>
 
                             {/* NEW: Rank */}
                             <Link href={`/cms/tryout/rank?test_id=${t.id}`}>
@@ -426,7 +425,7 @@ export default function TryoutPage() {
           <DialogContent className="max-h-[98vh] overflow-y-auto sm:max-w-2xl md:max-w-3xl xl:max-w-5xl">
             <DialogHeader>
               <DialogTitle>
-                {editing ? "Form Ubah Tryout" : "Form Tambah Tryout"}
+                {editing ? "Form Ubah Ujian Online" : "Form Tambah Ujian Online"}
               </DialogTitle>
             </DialogHeader>
 

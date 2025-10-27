@@ -85,7 +85,7 @@ export default function TryoutForm({ open, onOpenChange, onSuccess }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl md:max-w-3xl xl:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Buat Paket Tryout</DialogTitle>
+          <DialogTitle>Buat Paket Ujian Online</DialogTitle>
         </DialogHeader>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

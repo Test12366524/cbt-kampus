@@ -69,6 +69,9 @@ export default function QuestionsForm({
   const [optionsMC, setOptionsMC] = useState<MCOption[]>([
     { option: "a", text: "", point: 0 },
     { option: "b", text: "", point: 0 },
+    { option: "c", text: "", point: 0 },
+    { option: "d", text: "", point: 0 },
+    { option: "e", text: "", point: 0 },
   ]);
   const [optionsTF, setOptionsTF] = useState<MCOption[]>([
     { option: "a", text: "True", point: 1 },
@@ -575,15 +578,8 @@ export default function QuestionsForm({
             <SelectValue placeholder="Pilih tipe" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+            <SelectItem value="multiple_choice">Pilihan Ganda</SelectItem>
             <SelectItem value="essay">Essay</SelectItem>
-            <SelectItem value="true_false">True / False</SelectItem>
-            <SelectItem value="multiple_choice_multiple_answer">
-              Multiple Choice (Multi Answer)
-            </SelectItem>
-            <SelectItem value="multiple_choice_multiple_category">
-              Multiple Choice (Multi Category)
-            </SelectItem>
           </SelectContent>
         </Select>
       </div>
