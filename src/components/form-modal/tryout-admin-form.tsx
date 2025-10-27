@@ -83,7 +83,6 @@ export default function TryoutForm({
     setForm(initial);
   }, [initial]);
 
-  // VALIDASI kecil
   const validate = (): string | null => {
     if (!form.title.trim()) return "Judul wajib diisi.";
     if (
