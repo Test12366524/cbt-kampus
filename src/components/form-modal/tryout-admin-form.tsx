@@ -69,7 +69,6 @@ export default function TryoutForm({
   onCancel,
   onSubmit,
 }: Props) {
-  // Kelola state LOKAL agar tak gampang reset saat parent re-render
   const [form, setForm] = React.useState<FormState>(initial);
 
   const [schoolSearch, setSchoolSearch] = React.useState<string>("");
