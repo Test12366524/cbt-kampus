@@ -28,9 +28,35 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  Clock3,
 } from "lucide-react";
 import Link from "next/link";
 import Swal from "sweetalert2";
+
+/** ===== Util types (tanpa any) ===== */
+type MinimalTestDetails = {
+  title?: string;
+  timer_type?: "per_test" | "per_category" | string;
+  total_time?: number; // detik (per_test)
+  remaining_seconds?: number; // sisa waktu dari server (jika ada)
+};
+
+/** Format detik => HH:MM:SS */
+function formatHMS(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+/** Key penyimpanan deadline di localStorage */
+function timerStorageKey(participantTestId: number, categoryId: string | null) {
+  return categoryId
+    ? `tryout:endAt:${participantTestId}:cat:${categoryId}`
+    : `tryout:endAt:${participantTestId}`;
+}
 
 export default function ExamPage() {
   const router = useRouter();
@@ -52,7 +78,7 @@ export default function ExamPage() {
   const [data, setData] = useState<ContinueTestData | null>(null);
   const lastSaveRef = useRef<Promise<unknown> | null>(null);
 
-  // Load
+  // ====== LOAD DATA ======
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -77,7 +103,7 @@ export default function ExamPage() {
     };
   }, [categoryId, loadCategory, loadTest, participantTestId]);
 
-  // Flatten questions
+  // ====== FLATTEN QUESTIONS ======
   const flat: ParticipantAnswer[] = useMemo(() => {
     if (!data) return [];
     const arr: ParticipantAnswer[] = [];
@@ -92,7 +118,7 @@ export default function ExamPage() {
   const isFirst = idx === 0;
   const isLast = idx === flat.length - 1;
 
-  // Update helper (mutasi local state supaya UI langsung update)
+  // ====== LOCAL PATCH HELPER ======
   function patchCurrent(upd: Partial<ParticipantAnswer>) {
     setData((prev) => {
       if (!prev || !current) return prev;
@@ -109,6 +135,7 @@ export default function ExamPage() {
     });
   }
 
+  // ====== ANSWER ACTIONS ======
   async function handleSave(answer: string, type: QuestionType) {
     if (!current) return;
     const p = saveAnswer({
@@ -226,7 +253,112 @@ export default function ExamPage() {
     }
   }
 
-  // Right navigator badges
+  // ====== COUNTDOWN LOGIC (deadline absolut + persist) ======
+  const testDetails: Partial<MinimalTestDetails> | undefined = useMemo(() => {
+    return (data?.test?.test_details ?? undefined) as
+      | Partial<MinimalTestDetails>
+      | undefined;
+  }, [data]);
+
+  /** Hitung detik awal dari server (prioritas remaining_seconds) atau total_time (per_test) */
+  const serverInitialSeconds = useMemo<number>(() => {
+    const rem = testDetails?.remaining_seconds;
+    if (typeof rem === "number" && rem > 0) return rem;
+
+    if (
+      testDetails?.timer_type === "per_test" &&
+      typeof testDetails.total_time === "number"
+    ) {
+      return Math.max(0, testDetails.total_time);
+    }
+    return 0;
+  }, [testDetails]);
+
+  // Simpan deadline absolut di localStorage agar tetap berjalan walau user keluar halaman/tab
+  const endAtRef = useRef<number>(0);
+  const finishingRef = useRef<boolean>(false);
+  const [remaining, setRemaining] = useState<number>(0);
+
+  // Inisialisasi / sinkronisasi deadline absolut
+  useEffect(() => {
+    const key = timerStorageKey(participantTestId, categoryId);
+    const now = Date.now();
+
+    // Jika server beri remaining_seconds, selalu prioritaskan itu (sinkron)
+    if (serverInitialSeconds > 0) {
+      const deadline = now + serverInitialSeconds * 1000;
+      endAtRef.current = deadline;
+      try {
+        localStorage.setItem(key, String(deadline));
+      } catch {}
+    } else {
+      // Kalau tidak ada dari server, coba baca dari storage
+      let fromStorage = 0;
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) fromStorage = Number(raw);
+      } catch {}
+
+      // Validasi deadline (maks 24 jam ke depan supaya tidak usang)
+      if (
+        fromStorage &&
+        fromStorage > now &&
+        fromStorage - now < 24 * 3600 * 1000
+      ) {
+        endAtRef.current = fromStorage;
+      } else {
+        endAtRef.current = 0; // tidak ada timer
+      }
+    }
+
+    // Set sisa awal
+    const diff = endAtRef.current
+      ? Math.ceil((endAtRef.current - now) / 1000)
+      : 0;
+    setRemaining(Math.max(0, diff));
+
+    // Jika sudah negatif/0 saat mount (misal user kembali saat waktu habis), auto finish
+    if (endAtRef.current && diff <= 0 && !finishingRef.current) {
+      finishingRef.current = true;
+      void handleFinishCategory();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participantTestId, categoryId, serverInitialSeconds]);
+
+  // Interval yang menghitung ulang berdasarkan endAt absolut
+  useEffect(() => {
+    if (!endAtRef.current) return; // tidak ada timer
+    const tick = () => {
+      const now = Date.now();
+      const left = Math.ceil((endAtRef.current - now) / 1000);
+      const safeLeft = Math.max(0, left);
+      setRemaining(safeLeft);
+      if (safeLeft <= 0 && !finishingRef.current) {
+        finishingRef.current = true;
+        void handleFinishCategory();
+      }
+    };
+
+    // Jalankan 1x dulu biar UI responsif
+    tick();
+    const id = setInterval(tick, 1000);
+
+    // Sinkron saat tab aktif kembali
+    const onVis = () => tick();
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endAtRef.current]);
+
+  const hasTimer = endAtRef.current > 0;
+  const timerString = hasTimer ? formatHMS(remaining) : null;
+  const timerDanger = hasTimer && remaining <= 60;
+
+  // ====== RIGHT NAV BADGES ======
   const navBadges = flat.map((q, i) => {
     const isActive = i === idx;
     const answered = (q.user_answer ?? "").length > 0;
@@ -253,9 +385,27 @@ export default function ExamPage() {
         <Link href="/tryout" className="text-sm text-zinc-600 hover:underline">
           &larr; Kembali ke Tryout
         </Link>
-        <div className="text-sm text-zinc-500">
-          {data?.test?.test_details?.title ?? "Tryout"}
+
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-zinc-500">
+            {testDetails?.title ?? data?.test?.test_details?.title ?? "Tryout"}
+          </div>
+
+          {hasTimer && (
+            <Badge
+              variant="outline"
+              className={`flex items-center gap-2 border-2 ${
+                timerDanger
+                  ? "border-red-400 text-red-600"
+                  : "border-sky-300 text-sky-700"
+              }`}
+            >
+              <Clock3 className="h-4 w-4" />
+              <span className="tabular-nums font-mono">{timerString}</span>
+            </Badge>
+          )}
         </div>
+
         <div />
       </div>
 
@@ -324,7 +474,7 @@ export default function ExamPage() {
               {/* Opsi/Jawaban */}
               <div className="mt-5">
                 <AnswerRenderer
-                  key={current.question_id} // ⬅️ remount saat pindah soal
+                  key={current.question_id} // remount saat pindah soal
                   current={current}
                   onSave={handleSave}
                   saving={saving}
@@ -360,6 +510,37 @@ export default function ExamPage() {
 
         {/* Right (sticky aside) */}
         <aside className="top-24 h-max rounded-3xl border bg-white p-4 shadow-sm lg:sticky">
+          {/* Big Timer */}
+          {hasTimer && (
+            <div
+              className={`mb-4 rounded-2xl border p-4 text-center ${
+                timerDanger
+                  ? "border-red-200 bg-red-50"
+                  : "border-sky-200 bg-sky-50"
+              }`}
+            >
+              <div className="mb-1 text-xs font-semibold text-zinc-600">
+                Sisa Waktu
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <Clock3
+                  className={
+                    timerDanger
+                      ? "h-5 w-5 text-red-600"
+                      : "h-5 w-5 text-sky-700"
+                  }
+                />
+                <div
+                  className={`font-mono text-2xl tabular-nums ${
+                    timerDanger ? "text-red-700" : "text-sky-800"
+                  }`}
+                >
+                  {timerString}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="mb-3 text-sm font-semibold text-zinc-700">
             Sudah Selesai?
           </div>
@@ -478,7 +659,6 @@ function MCControl({
     multiple ? (initial ? initial.split(",") : []) : initial ? [initial] : []
   );
 
-  // Sync saat pindah soal / initial berubah
   useEffect(() => {
     setValue(
       multiple ? (initial ? initial.split(",") : []) : initial ? [initial] : []
@@ -504,7 +684,7 @@ function MCControl({
           >
             <input
               type={multiple ? "checkbox" : "radio"}
-              name={name} // unik per soal
+              name={name}
               className="mt-1"
               checked={checked}
               onChange={() => {
