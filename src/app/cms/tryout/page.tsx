@@ -10,7 +10,7 @@ import {
   useDeleteTestMutation,
 } from "@/services/tryout/test.service";
 import { useExportTestMutation } from "@/services/tryout/export-test.service";
-import { useGetSchoolListQuery } from "@/services/master/school.service"; // 🆕
+import { useGetSchoolListQuery } from "@/services/master/school.service";
 import type { Test } from "@/types/tryout/test";
 
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,24 @@ const emptyForm: FormState = {
   is_explanation_released: false,
 };
 
-type School = { id: number; name: string; email?: string }; // 🆕 tipe ringan untuk Combobox
+type School = { id: number; name: string; email?: string };
+
+/** Pastikan format YYYY-MM-DD (date only) */
+function dateOnly(input?: string | null): string {
+  if (!input) return "";
+  // Jika sudah "YYYY-MM-DD" biarkan saja
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+  // Jika ada waktu, ambil 10 pertama
+  const s = String(input);
+  if (s.includes("T") || s.includes(" ")) return s.slice(0, 10);
+  // fallback parsing
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export default function TryoutPage() {
   const [page, setPage] = useState(1);
@@ -95,19 +112,13 @@ export default function TryoutPage() {
   const [search, setSearch] = useState("");
   const [searchBySpecific, setSearchBySpecific] = useState("");
 
-  // 🆕 state filter Prodi
+  // Filter Prodi
   const [schoolId, setSchoolId] = useState<number | null>(null);
   const [schoolSearch, setSchoolSearch] = useState("");
 
-  // 🆕 ambil list prodi (school)
   const { data: schoolResp, isLoading: loadingSchools } = useGetSchoolListQuery(
-    {
-      page: 1,
-      paginate: 100, // cukup besar untuk dropdown
-      search: schoolSearch || "",
-    }
+    { page: 1, paginate: 100, search: schoolSearch || "" }
   );
-
   const schools: School[] = useMemo(() => schoolResp?.data ?? [], [schoolResp]);
 
   const { data, isLoading, refetch } = useGetTestListQuery({
@@ -117,7 +128,6 @@ export default function TryoutPage() {
     searchBySpecific,
     orderBy: "tests.updated_at",
     orderDirection: "desc",
-    // 🆕 terapkan filter school_id bila ada
     school_id: schoolId ?? undefined,
   });
 
@@ -142,37 +152,46 @@ export default function TryoutPage() {
     assessment_type: t.assessment_type as AssessmentType,
     timer_type: t.timer_type as TimerType,
     score_type: (t.score_type as ScoreType) ?? "default",
-    start_date: t.start_date ?? "",
-    end_date: t.end_date ?? "",
+    // normalisasi untuk input type="date"
+    start_date: dateOnly(t.start_date),
+    end_date: dateOnly(t.end_date),
     code: t.code ?? "",
     max_attempts: t.max_attempts ?? "",
     is_graded: t.is_graded,
     is_explanation_released: t.is_explanation_released,
   });
 
-  const toPayload = (f: FormState): TestPayload => ({
-    school_id: f.school_id,
-    title: f.title,
-    sub_title: f.sub_title || null,
-    shuffle_questions: f.shuffle_questions ? 1 : 0,
-    timer_type: f.timer_type,
-    score_type: f.score_type,
-    ...(f.timer_type === "per_test"
-      ? { total_time: Number(f.total_time || 0) }
-      : {}),
-    ...(f.score_type === "irt"
-      ? { start_date: f.start_date, end_date: f.end_date }
-      : {}),
-    slug: f.slug,
-    description: f.description,
-    total_questions: f.total_questions,
-    pass_grade: f.pass_grade,
-    assessment_type: f.assessment_type,
-    code: f.code || "",
-    max_attempts: f.max_attempts || "",
-    is_graded: f.is_graded,
-    is_explanation_released: f.is_explanation_released,
-  });
+  const toPayload = (f: FormState): TestPayload => {
+    const payload: TestPayload = {
+      school_id: f.school_id,
+      title: f.title,
+      sub_title: f.sub_title || null,
+      shuffle_questions: f.shuffle_questions ? 1 : 0,
+      timer_type: f.timer_type,
+      score_type: f.score_type,
+      slug: f.slug,
+      description: f.description,
+      total_questions: f.total_questions,
+      pass_grade: f.pass_grade,
+      assessment_type: f.assessment_type,
+      code: f.code || "",
+      max_attempts: f.max_attempts || "",
+      is_graded: f.is_graded,
+      is_explanation_released: f.is_explanation_released,
+    };
+
+    if (f.timer_type === "per_test") {
+      payload.total_time = Number(f.total_time || 0);
+    }
+
+    // ⬇️ KIRIM tanggal jika diisi, SELALU dalam format YYYY-MM-DD
+    const sd = dateOnly(f.start_date);
+    const ed = dateOnly(f.end_date);
+    if (sd) payload.start_date = sd;
+    if (ed) payload.end_date = ed;
+
+    return payload;
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -204,10 +223,12 @@ export default function TryoutPage() {
           text: `Test "${res.title}" dibuat.`,
         });
       }
+      // ✅ sukses: tutup modal
       setOpen(false);
       setEditing(null);
       refetch();
     } catch (e) {
+      // ❌ gagal: modal tetap terbuka
       await Swal.fire({ icon: "error", title: "Gagal", text: String(e) });
     }
   };
@@ -297,7 +318,7 @@ export default function TryoutPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && refetch()}
                 />
-                {/* 🆕 Filter Prodi (school_id) */}
+                {/* Filter Prodi (school_id) */}
                 <div className="flex items-center gap-2 w-full md:w-80">
                   <div className="flex w-full gap-2">
                     <Combobox<School>
@@ -331,7 +352,7 @@ export default function TryoutPage() {
                   onClick={() => {
                     setSearch("");
                     setSearchBySpecific("");
-                    setSchoolId(null); // 🆕 reset filter prodi juga
+                    setSchoolId(null);
                     setPage(1);
                     refetch();
                   }}

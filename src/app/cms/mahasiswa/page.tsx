@@ -18,6 +18,7 @@ import {
   Upload,
   FileDown,
   Printer,
+  EllipsisVertical,
 } from "lucide-react";
 
 import {
@@ -810,15 +811,7 @@ export default function StudentsPage() {
                                     onClick={() => onEdit(u.id)}
                                     title="Edit"
                                   >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="destructive"
-                                    onClick={() => setPendingDelete(u)}
-                                    title="Hapus"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
+                                    <EllipsisVertical className="h-4 w-4" />
                                   </Button>
                                 </div>
                               </DropdownMenuTrigger>

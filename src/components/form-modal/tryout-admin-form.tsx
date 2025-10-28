@@ -10,15 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combo-box";
 
 import type { School } from "@/types/master/school";
-
 import { useGetSchoolListQuery } from "@/services/master/school.service";
 
 /** === Shared enums (sinkron dgn service) === */
-export type TimerType = string; //"per_test" | "per_category"
+export type TimerType = string;
 export type ScoreType = string;
 export type AssessmentType = string;
 
-/** === Form shape (entity-like, bukan payload API) === */
+/** === Form shape === */
 export type FormState = {
   school_id: number;
   title: string;
@@ -32,8 +31,8 @@ export type FormState = {
   assessment_type: AssessmentType;
   timer_type: TimerType;
   score_type: ScoreType;
-  start_date: string;
-  end_date: string;
+  start_date: string; // YYYY-MM-DD
+  end_date: string; // YYYY-MM-DD
   code: string;
   max_attempts: string;
   is_graded: boolean;
@@ -47,12 +46,9 @@ type Props = {
   onSubmit: (values: FormState) => void | Promise<void>;
 };
 
-/** Load SunEditor (client only) */
 const SunEditor = dynamic(() => import("suneditor-react"), { ssr: false });
 
-/** Button list SunEditor */
 type ButtonList = (string | string[])[];
-
 const defaultButtons: ButtonList = [
   ["undo", "redo"],
   ["bold", "italic", "underline", "strike", "removeFormat"],
@@ -62,6 +58,20 @@ const defaultButtons: ButtonList = [
   ["blockquote", "link", "image", "video", "table"],
   ["codeView", "fullScreen"],
 ];
+
+/** Normalisasi ke YYYY-MM-DD */
+function dateOnly(input?: string | null): string {
+  if (!input) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
+  const s = String(input);
+  if (s.includes("T") || s.includes(" ")) return s.slice(0, 10);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 export default function TryoutForm({
   initial,
@@ -78,9 +88,14 @@ export default function TryoutForm({
       { refetchOnMountOrArgChange: true }
     );
   const schools: School[] = schoolListResp?.data ?? [];
-  
+
   React.useEffect(() => {
-    setForm(initial);
+    // pastikan date-only saat form diisi dari editing
+    setForm(() => ({
+      ...initial,
+      start_date: dateOnly(initial.start_date),
+      end_date: dateOnly(initial.end_date),
+    }));
   }, [initial]);
 
   const validate = (): string | null => {
@@ -95,7 +110,6 @@ export default function TryoutForm({
   };
 
   const handleSubmit = async () => {
-    const err = validate();
     if (!form.school_id) {
       void Swal.fire({
         icon: "warning",
@@ -104,15 +118,14 @@ export default function TryoutForm({
       });
       return;
     }
+    const err = validate();
     if (err) {
-      // biar minimal, pakai alert—silakan ganti Swal kalau mau di sini juga
       alert(err);
       return;
     }
     await onSubmit(form);
   };
 
-  // ==== RICH TEXT: gunakan HANYA setContents + onChange (tanpa defaultValue) ====
   const handleRTChange = React.useCallback((html: string) => {
     setForm((prev) => ({ ...prev, description: html }));
   }, []);
@@ -134,6 +147,7 @@ export default function TryoutForm({
             getOptionLabel={(s) => s.name}
           />
         </div>
+
         <div>
           <Label>Judul *</Label>
           <div className="h-2" />
@@ -142,6 +156,7 @@ export default function TryoutForm({
             onChange={(e) => setForm({ ...form, title: e.target.value })}
           />
         </div>
+
         <div>
           <Label>Sub Judul</Label>
           <div className="h-2" />
@@ -171,7 +186,7 @@ export default function TryoutForm({
           </div>
           <div className="flex items-center gap-2 mt-6">
             <Switch
-              checked={form.is_graded}
+              checked={!!form.is_graded}
               onCheckedChange={(v) => setForm({ ...form, is_graded: v })}
               id="graded"
             />
@@ -195,11 +210,10 @@ export default function TryoutForm({
             <Switch
               id="shuffle"
               checked={Boolean(form.shuffle_questions)}
-              onCheckedChange={
-                (v) => setForm({ ...form, shuffle_questions: v })
+              onCheckedChange={(v) =>
+                setForm({ ...form, shuffle_questions: v })
               }
             />
-
             <Label htmlFor="shuffle">Shuffle Questions</Label>
           </div>
         </div>
@@ -225,23 +239,28 @@ export default function TryoutForm({
           </div>
         </div>
 
+        {/* ⬇️ Ganti ke type="date", kirim selalu sebagai YYYY-MM-DD */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Tanggal Mulai</Label>
             <div className="h-2" />
             <Input
-              type="datetime-local"
-              value={form.start_date ?? ""}
-              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+              type="date"
+              value={form.start_date || ""}
+              onChange={(e) =>
+                setForm({ ...form, start_date: dateOnly(e.target.value) })
+              }
             />
           </div>
           <div>
             <Label>Tanggal Selesai</Label>
             <div className="h-2" />
             <Input
-              type="datetime-local"
-              value={form.end_date ?? ""}
-              onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+              type="date"
+              value={form.end_date || ""}
+              onChange={(e) =>
+                setForm({ ...form, end_date: dateOnly(e.target.value) })
+              }
             />
           </div>
         </div>
@@ -253,17 +272,11 @@ export default function TryoutForm({
         <div className="h-1" />
         <div className="rounded-lg border bg-background">
           <SunEditor
-            setContents={form.description} // <-- controlled, TANPA defaultValue
+            setContents={form.description}
             onChange={handleRTChange}
             placeholder="Tulis konten di sini…"
             setDefaultStyle={`
-              body {
-                font-family: inherit;
-                font-size: 14px;
-                line-height: 1.7;
-                color: hsl(var(--foreground));
-                background: transparent;
-              }
+              body { font-family: inherit; font-size: 14px; line-height: 1.7; color: hsl(var(--foreground)); background: transparent; }
               a { color: hsl(var(--primary)); text-decoration: underline; }
               table { border-collapse: collapse; width: 100%; }
               table, th, td { border: 1px solid hsl(var(--border)); }
