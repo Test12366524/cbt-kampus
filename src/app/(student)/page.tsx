@@ -1,60 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Trophy, AlertCircle, User2 } from "lucide-react";
-import type { Role } from "@/types/user";
+import { skipToken } from "@reduxjs/toolkit/query";
 import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
+import { useSession } from "next-auth/react";
 
-/** ===== Helpers ===== */
-type Session = {
-  user: {
-    name: string;
-    email: string;
-    id: number;
-    token: string;
-    roles: Role[];
-  };
-  expires: string;
-};
 
-// Ambil session dari storage bila ada, fallback ke contoh
-function useSession(): Session {
-  const fallback: Session = {
-    user: {
-      name: "Soni Setiawan",
-      email: "soni.setiawan.it07@gmail.com",
-      id: 7,
-      token: "49|I7WaGioM9u5Vx07mpk5ZGKvdOF9mJAMTrKzWU9cL89f6acb5",
-      roles: [
-        {
-          id: 2,
-          name: "user",
-          guard_name: "api",
-          created_at: "2025-10-02T09:59:47.000000Z",
-          updated_at: "2025-10-02T09:59:47.000000Z",
-        },
-      ],
-    },
-    expires: "2125-09-29T10:55:29.577Z",
-  };
-
-  const [session, setSession] = useState<Session>(fallback);
-
-  useEffect(() => {
-    try {
-      const fromSS =
-        typeof window !== "undefined" &&
-        (sessionStorage.getItem("session") || localStorage.getItem("session"));
-      if (fromSS) setSession(JSON.parse(fromSS));
-    } catch {
-      setSession(fallback);
-    }
-  }, []);
-
-  return session;
-}
-
+/** ===== Utils ===== */
 function formatDateTime(iso?: string | null): string {
   if (!iso) return "—";
   try {
@@ -69,40 +23,42 @@ function formatDateTime(iso?: string | null): string {
   }
 }
 
+/** ===== Page ===== */
 export default function DashboardPage() {
-  const { user } = useSession();
+  const { data: session } = useSession();
+  const user = session?.user;
+  const nameUser = user?.name;
+  const emailUser = user?.email;
 
-  // Ambil riwayat partisipan milik user, minta 10 lalu kita sortir & ambil 5 terbaru di sisi klien
+  // Query hanya jalan kalau user tersedia
+  const queryArg =
+    user != null
+      ? {
+          user_id: user.id,
+          paginate: 10,
+          orderBy: "updated_at" as const,
+        }
+      : skipToken;
+
   const {
     data: history,
     isLoading,
     isError,
-  } = useGetParticipantHistoryListQuery({
-    user_id: user.id,
-    paginate: 10,
-    // kita ingin "terbaru", pada banyak API hal ini identik dengan updated_at paling akhir
-    orderBy: "updated_at",
-  });
+  } = useGetParticipantHistoryListQuery(queryArg);
 
   // Normalisasi & sortir terbaru, lalu ambil 5 teratas
   const latestTop5 = useMemo(() => {
     const items = (history?.data ?? []).slice();
-
     const ts = (r: ParticipantHistoryItem): number => {
       const pick =
-        r.updated_at ??
-        r.end_date ??
-        r.start_date ??
-        r.created_at ?? // created_at ada di contoh
-        null;
+        r.updated_at ?? r.end_date ?? r.start_date ?? r.created_at ?? null;
       return pick ? new Date(pick).getTime() : 0;
     };
-
     items.sort((a, b) => ts(b) - ts(a));
     return items.slice(0, 5);
   }, [history]);
 
-  // Hitung nilai terbesar & terkecil dari 5 terbaru (abaikan nilai null/"-" jika ada)
+  // Hitung nilai terbesar & terkecil dari 5 terbaru
   const { maxScore, minScore, maxMeta, minMeta } = useMemo(() => {
     const withScore = latestTop5.filter(
       (r) => typeof r.grade === "number" && !Number.isNaN(r.grade)
@@ -120,20 +76,27 @@ export default function DashboardPage() {
     const min = Math.min(...grades);
     const maxRow = withScore.find((r) => r.grade === max);
     const minRow = withScore.find((r) => r.grade === min);
-    return {
-      maxScore: max,
-      minScore: min,
-      maxMeta: maxRow,
-      minMeta: minRow,
-    };
+    return { maxScore: max, minScore: min, maxMeta: maxRow, minMeta: minRow };
   }, [latestTop5]);
 
   const totalHistory = history?.total ?? 0;
 
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="rounded-2xl border bg-white/80 px-5 py-4 text-center shadow-sm">
+          <p className="text-sm text-zinc-700">
+            Kamu belum masuk. Silakan login agar data dashboard dapat dimuat
+            dari session.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.06),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(56,189,248,0.06),transparent_40%)]">
       <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-4 md:grid-cols-[240px,1fr] md:gap-6">
-        {/* ===== Main ===== */}
         <main className="space-y-6">
           {/* Welcome */}
           <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-zinc-100 shadow-sm backdrop-blur md:p-6">
@@ -143,15 +106,14 @@ export default function DashboardPage() {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-lg font-semibold md:text-xl">
-                  Selamat Datang {user?.name}
+                  Selamat Datang {nameUser}
                 </p>
-                <p className="truncate text-sm text-sky-700">{user?.email}</p>
+                <p className="truncate text-sm text-sky-700">{emailUser}</p>
               </div>
             </div>
 
             {/* Cards row */}
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-              {/* Total Paket/riwayat */}
               <Card
                 tone="sky"
                 title="Total Paket Saya"
@@ -159,7 +121,6 @@ export default function DashboardPage() {
                 subtitle="Riwayat pengerjaan"
               />
 
-              {/* Nilai Ujian Terbesar */}
               <Card
                 tone="indigo"
                 title="Nilai Ujian Terbesar"
@@ -177,7 +138,6 @@ export default function DashboardPage() {
                 icon={<Trophy className="h-4 w-4" />}
               />
 
-              {/* Nilai Ujian Terendah */}
               <Card
                 tone="soft"
                 title="Nilai Ujian Terendah"
@@ -299,6 +259,7 @@ export default function DashboardPage() {
   );
 }
 
+/** ===== UI bits ===== */
 function Card({
   tone,
   title,

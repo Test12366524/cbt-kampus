@@ -262,7 +262,7 @@ function StudentSidebar({
             <p className="truncate text-[11px] text-sky-700">{user.email}</p>
           </div>
           <span className="ml-auto rounded-full bg-sky-500/90 px-2 py-0.5 text-[10px] font-semibold text-white ring-1 ring-sky-200/60">
-            Student
+            Mahasiswa
           </span>
         </div>
       </div>
