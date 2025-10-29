@@ -15,11 +15,11 @@ import ClientAuthGuard from "@/components/client-guards";
 // };
 
 export const metadata: Metadata = {
-  title: "Marketing Systems",
+  title: "CBT Notokusumo",
   description:
     "Solusi cerdas untuk mempermudah manajemen dan pemantauan penjualan secara efisien.",
   icons: {
-    icon: "/icon-marketing.png",
+    icon: "/logo-stikes.jpg",
   },
 };
 

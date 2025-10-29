@@ -56,11 +56,11 @@ export default function LoginForm() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email / NIM</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="m@example.com"
+                type="text"
+                placeholder="m@example.com atau SKA123214"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-700 text-black dark:text-white"
@@ -110,7 +110,7 @@ export default function LoginForm() {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="border-2 border-dashed border-neutral-300 dark:border-neutral-700 p-12 rounded-lg">
             <Image
-              src="/login.webp"
+              src="/logo-stikes.jpg"
               alt="Ujian Online"
               width={400}
               height={400}
