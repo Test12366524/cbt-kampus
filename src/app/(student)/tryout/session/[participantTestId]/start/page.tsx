@@ -20,6 +20,16 @@ function formatDurationFromSeconds(seconds?: number) {
   return `${h} jam${m ? ` ${m} menit` : ""}`;
 }
 
+/** Daftar aturan/larangan yang akan ditampilkan di halaman & modal konfirmasi */
+const RULES: readonly string[] = [
+  "Jangan refresh atau menutup tab selama ujian berlangsung",
+  "Jangan keluar dari mode layar penuh dan jangan menekan tombol Esc",
+  "Jangan berpindah tab atau meminimalkan jendela",
+  "Jangan membuka Developer Tools (F12, Ctrl+Shift+I/J/C, Ctrl+U)",
+  "Jangan menyalin, menempel, klik kanan, drag, atau menyeleksi teks",
+  "Jangan menyimpan atau mencetak halaman (Ctrl+S / Ctrl+P)",
+];
+
 export default function StartTryoutPage() {
   const params = useParams<{ participantTestId: string }>();
   const participantTestId = Number(params.participantTestId);
@@ -40,6 +50,27 @@ export default function StartTryoutPage() {
       });
       return;
     }
+
+    // Modal konfirmasi aturan
+    const htmlList = `<ol style="text-align:left;margin:0 0 0 1em;padding:0;">
+      ${RULES.map((r) => `<li style="margin:6px 0;">${r}</li>`).join("")}
+      </ol>
+      <p style="margin-top:10px"><strong>Pelanggaran berulang dapat membuat sesi otomatis terselesaikan.</strong></p>
+      <p style="margin-top:4px">Menekan <strong>Esc</strong> akan memicu peringatan dan dapat langsung mensubmit ujian.</p>`;
+
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "Konfirmasi Aturan Ujian",
+      html: htmlList,
+      confirmButtonText: "Saya mengerti dan setuju",
+      cancelButtonText: "Batal",
+      showCancelButton: true,
+      reverseButtons: true,
+      focusConfirm: false,
+    });
+
+    if (!confirm.isConfirmed) return;
+
     try {
       await continueCategory({
         participant_test_id: participantTestId,
@@ -97,14 +128,13 @@ export default function StartTryoutPage() {
             />
           </div>
 
+          {/* Catatan penting / Larangan */}
           <div className="mt-6 text-sm">
             <p className="mb-2 font-semibold">Catatan penting:</p>
             <ul className="list-inside list-decimal space-y-1 text-white/90">
-              <li>Pastikan koneksi internet stabil.</li>
-              <li>Jangan refresh atau menutup tab saat ujian berlangsung.</li>
-              <li>
-                Gunakan tombol <strong>Selesaikan Sesi</strong> saat selesai.
-              </li>
+              {RULES.map((rule) => (
+                <li key={rule}>{rule}.</li>
+              ))}
             </ul>
           </div>
         </div>
