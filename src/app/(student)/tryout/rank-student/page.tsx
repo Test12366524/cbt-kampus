@@ -132,7 +132,6 @@ export default function RankStudentPage() {
                 <th className="p-3">No</th>
                 <th className="p-3">Peserta</th>
                 <th className="p-3">Email</th>
-                <th className="p-3">Nilai</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Mulai</th>
                 <th className="p-3">Selesai</th>
@@ -156,11 +155,6 @@ export default function RankStudentPage() {
                       </td>
                       <td className="p-3">{r.participant_name}</td>
                       <td className="p-3">{r.participant_email}</td>
-                      <td className="p-3">
-                        <Badge className="bg-sky-600 text-white hover:bg-sky-700">
-                          {r.grade}
-                        </Badge>
-                      </td>
                       <td className="p-3">
                         {isCompleted ? (
                           <Badge className="bg-sky-600 text-white hover:bg-sky-700">
