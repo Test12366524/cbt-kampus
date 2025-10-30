@@ -24,8 +24,7 @@ const ALWAYS_ALLOW_PREFIX = ["/api/auth", "/_next", "/static", "/images"];
 const ALWAYS_ALLOW_EXACT = ["/favicon.ico", "/robots.txt", "/sitemap.xml"];
 
 const isPublic = (pathname: string) =>
-  PUBLIC_PATHS.includes(pathname) ||
-  pathname.startsWith("/api/auth"); // khusus next-auth
+  PUBLIC_PATHS.includes(pathname) || pathname.startsWith("/api/auth");
 
 const isAssetLike = (pathname: string) =>
   ALWAYS_ALLOW_EXACT.includes(pathname) ||
@@ -41,8 +40,11 @@ function hasRole(token: TokenLike | null, roleName: string): boolean {
     return false;
   };
 
+  // kemungkinan token.role = "superadmin"
   if (typeof token.role === "string" && token.role === roleName) return true;
+  // kemungkinan token.roles = ["superadmin"] / [{ name: "superadmin" }]
   if (Array.isArray(token.roles) && token.roles.some(ok)) return true;
+  // kemungkinan token.user.roles = [...]
   if (Array.isArray(token.user?.roles) && token.user!.roles!.some(ok))
     return true;
 
@@ -66,13 +68,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  const isSuperadmin = hasRole(token, "superadmin");
+  // ⬇️ di sini kuncinya: pengawas diperlakukan sama kayak superadmin
+  const isSuperOrPengawas =
+    hasRole(token, "superadmin") || hasRole(token, "pengawas");
   const isUser = hasRole(token, "user");
   const isCmsPath = pathname.startsWith("/cms");
 
   // Aturan akses
-  if (isSuperadmin) {
-    // superadmin: hanya /cms*
+  if (isSuperOrPengawas) {
+    // superadmin / pengawas: hanya /cms*
     if (!isCmsPath) {
       return NextResponse.redirect(new URL("/cms", req.url));
     }
@@ -80,7 +84,7 @@ export async function middleware(req: NextRequest) {
   }
 
   if (isUser) {
-    // user: dilarang ke /cms*
+    // user biasa: tidak boleh ke /cms
     if (isCmsPath) {
       return NextResponse.redirect(new URL("/", req.url));
     }
@@ -94,7 +98,6 @@ export async function middleware(req: NextRequest) {
 // Terapkan ke semua route kecuali asset umum & next internals
 export const config = {
   matcher: [
-    // Semua path, kecuali yang dikecualikan via negative lookahead
     "/((?!api/auth|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\..*).*)",
   ],
 };

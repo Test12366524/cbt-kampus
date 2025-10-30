@@ -9,14 +9,17 @@ import {
   useGetUserByIdQuery,
   useUpdateUserMutation,
 } from "@/services/users-management.service";
+import { useGetRolesQuery } from "@/services/users.service";
 import Swal from "sweetalert2";
 import { X } from "lucide-react";
+import { Combobox } from "@/components/ui/combo-box";
+import type { Role } from "@/types/user";
 
 type Props = {
   open: boolean;
   mode: "create" | "edit";
   id?: number;
-  defaultRoleId?: number; // e.g. 2 (student)
+  defaultRoleId?: number;
   onClose: () => void;
   onSuccess: () => void;
 };
@@ -47,6 +50,20 @@ export default function UsersForm({
   const [createUser, { isLoading: creating }] = useCreateUserMutation();
   const [updateUser, { isLoading: updating }] = useUpdateUserMutation();
 
+  // ambil daftar role
+  const {
+    data: rolesResp,
+    isLoading: loadingRoles,
+    refetch: refetchRoles,
+  } = useGetRolesQuery();
+
+  // normalisasi respon role tanpa any
+  const roles: Role[] = Array.isArray(rolesResp)
+    ? rolesResp
+    : Array.isArray((rolesResp as { data?: Role[] })?.data)
+    ? ((rolesResp as { data?: Role[] }).data as Role[])
+    : [];
+
   const initial: FormState = useMemo(
     () => ({
       name: detail?.name ?? "",
@@ -60,8 +77,21 @@ export default function UsersForm({
   );
 
   const [form, setForm] = useState<FormState>(initial);
-  // ⬇️ perbaikan dependency
-  useEffect(() => setForm(initial), [initial]);
+  const [selectedRoleId, setSelectedRoleId] = useState<number | null>(
+    defaultRoleId ?? null
+  );
+
+  // kalau edit → isikan form dan role
+  useEffect(() => {
+    setForm(initial);
+    if (isEdit && detail) {
+      const firstRole =
+        detail.roles && detail.roles.length > 0 ? detail.roles[0].id : null;
+      setSelectedRoleId(firstRole);
+    } else if (!isEdit) {
+      setSelectedRoleId(defaultRoleId ?? null);
+    }
+  }, [initial, isEdit, detail, defaultRoleId]);
 
   function set<K extends keyof FormState>(k: K, v: FormState[K]) {
     setForm((s) => ({ ...s, [k]: v }));
@@ -76,6 +106,10 @@ export default function UsersForm({
     }
     if (!form.email.trim()) {
       await Swal.fire({ icon: "warning", title: "Email wajib diisi" });
+      return;
+    }
+    if (!selectedRoleId) {
+      await Swal.fire({ icon: "warning", title: "Pilih role terlebih dahulu" });
       return;
     }
     if (!isEdit && !form.password) {
@@ -98,7 +132,8 @@ export default function UsersForm({
             name: form.name,
             email: form.email,
             phone: form.phone || null,
-            status: form.status ? 1 : 0, // opsional, sesuai backend
+            status: form.status ? 1 : 0,
+            role_id: selectedRoleId, // <-- kirim role dipilih
           },
         }).unwrap();
         await Swal.fire({ icon: "success", title: "User diperbarui" });
@@ -107,8 +142,8 @@ export default function UsersForm({
           name: form.name,
           email: form.email,
           phone: form.phone || "",
-          role_id: defaultRoleId,
-          status: form.status ? 1 : 0, // opsional
+          role_id: selectedRoleId, // <-- sekarang dari combobox
+          status: form.status ? 1 : 0,
           password: form.password,
           password_confirmation: form.password_confirmation,
         }).unwrap();
@@ -167,6 +202,22 @@ export default function UsersForm({
             </div>
           </div>
 
+          {/* pilih role */}
+          <div>
+            <Label>Role</Label>
+            <Combobox<Role>
+              value={selectedRoleId}
+              onChange={(val) => setSelectedRoleId(val)}
+              onOpenRefetch={() => {
+                void refetchRoles();
+              }}
+              data={roles}
+              isLoading={loadingRoles}
+              placeholder="Pilih role pengguna"
+              getOptionLabel={(r) => r.name}
+            />
+          </div>
+
           {!isEdit && (
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -196,10 +247,6 @@ export default function UsersForm({
               onChange={(e) => set("status", e.target.checked)}
             />
             <Label htmlFor="status">Aktif</Label>
-          </div>
-
-          <div className="rounded-xl border bg-sky-50 px-3 py-2 text-sm text-sky-800">
-            Role akan diset ke <b>role_id={defaultRoleId}</b> (Student/User).
           </div>
 
           <div className="mt-4 flex justify-end gap-2">

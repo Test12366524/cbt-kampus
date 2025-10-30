@@ -33,7 +33,7 @@ import {
 /* =========================
  * Types
  * =======================*/
-type RoleName = "superadmin" | "user";
+type RoleName = "superadmin" | "pengawas";
 
 type IconType =
   | typeof IconDashboard
@@ -130,8 +130,8 @@ const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
     ],
   },
 
-  // ⛔ role "user" hanya boleh akses 3 menu berikut:
-  user: {
+  // ⛔ role "pengawas" hanya boleh akses 3 menu berikut:
+  pengawas: {
     navMain: [
       {
         title: "Dashboard",
@@ -139,14 +139,9 @@ const NAV_BY_ROLE: Record<RoleName, MenuBundle> = {
         icon: IconDashboard,
       },
       {
-        title: "Surat Cuti",
-        url: "/surat-cuti",
-        icon: IconDashboard,
-      },
-      {
-        title: "Cuti Luar Kota",
-        url: "/cuti-luar-kota",
-        icon: IconDashboard,
+        title: "Ujian Online",
+        url: "/cms/tryout",
+        icon: IconZoomQuestion,
       },
     ],
     navSecondary: [
@@ -170,7 +165,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
     (session?.user as unknown as { roles?: Array<{ name?: string }> })
       ?.roles?.[0]?.name === "superadmin"
       ? "superadmin"
-      : "user"; // default aman: user
+      : "pengawas"; // default aman: user
 
   const menus = NAV_BY_ROLE[roleName];
 

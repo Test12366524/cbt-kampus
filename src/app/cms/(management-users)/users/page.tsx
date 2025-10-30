@@ -25,7 +25,8 @@ import PasswordDialog from "@/components/modal/users-password-dialog";
 import { IconPhoneCheck } from "@tabler/icons-react";
 
 const PER_PAGE = 10;
-const ROLE_ID = 2; // Student/User
+// kalau mau, kamu bisa hilangkan ini dan jangan kirim ke query
+const DEFAULT_LIST_ROLE_ID = 2;
 
 function formatDate(s?: string | null) {
   if (!s) return "-";
@@ -41,7 +42,7 @@ export default function UsersPage() {
     page,
     paginate,
     search: q,
-    role_id: ROLE_ID,
+    // role_id: DEFAULT_LIST_ROLE_ID,
   });
 
   const items: Users[] = useMemo(() => data?.data ?? [], [data]);
@@ -282,8 +283,7 @@ export default function UsersPage() {
           {/* Footer / Pagination */}
           <div className="flex items-center justify-between border-t px-4 py-3 text-sm text-zinc-600">
             <div>
-              {" "}
-              Total {total} data • Halaman {page} dari {lastPage}{" "}
+              Total {total} data • Halaman {page} dari {lastPage}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -310,7 +310,8 @@ export default function UsersPage() {
             open
             mode={openForm.mode}
             id={openForm.id}
-            defaultRoleId={ROLE_ID}
+            // default role boleh dikirim tapi sudah bisa diubah di combobox
+            defaultRoleId={DEFAULT_LIST_ROLE_ID}
             onClose={() => setOpenForm(null)}
             onSuccess={() => {
               setOpenForm(null);
