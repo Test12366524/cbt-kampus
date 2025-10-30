@@ -208,7 +208,7 @@ export default function TryoutListPage() {
                   </div>
 
                   <div className="mt-5 grid grid-cols-2 gap-2">
-                    <Button
+                    {/* <Button
                       variant="outline"
                       className="justify-center gap-2"
                       asChild
@@ -217,7 +217,7 @@ export default function TryoutListPage() {
                         <BarChart3 className="h-4 w-4" />
                         Hasil Tryout
                       </Link>
-                    </Button>
+                    </Button> */}
 
                     {isContinuable ? (
                       <Button
@@ -251,10 +251,6 @@ export default function TryoutListPage() {
                         )}
                       </Button>
                     )}
-                  </div>
-
-                  {/* Tombol Peringkat */}
-                  <div className="mt-2">
                     <Button
                       variant="skyblue"
                       className="w-full justify-center gap-2"
@@ -266,6 +262,10 @@ export default function TryoutListPage() {
                       </Link>
                     </Button>
                   </div>
+
+                  {/* Tombol Peringkat */}
+                  {/* <div className="mt-2">
+                  </div> */}
                 </article>
               );
             })}

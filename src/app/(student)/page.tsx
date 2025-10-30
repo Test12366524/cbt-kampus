@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { Trophy, AlertCircle, User2 } from "lucide-react";
+import { useMemo, type ReactNode } from "react";
+import { User2 } from "lucide-react";
 import { skipToken } from "@reduxjs/toolkit/query";
 import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
 import { useSession } from "next-auth/react";
-
 
 /** ===== Utils ===== */
 function formatDateTime(iso?: string | null): string {
@@ -30,7 +29,7 @@ export default function DashboardPage() {
   const nameUser = user?.name;
   const emailUser = user?.email;
 
-  // Query hanya jalan kalau user tersedia
+  // query hanya jalan kalau user ada
   const queryArg =
     user != null
       ? {
@@ -46,7 +45,7 @@ export default function DashboardPage() {
     isError,
   } = useGetParticipantHistoryListQuery(queryArg);
 
-  // Normalisasi & sortir terbaru, lalu ambil 5 teratas
+  // ambil 5 terbaru
   const latestTop5 = useMemo(() => {
     const items = (history?.data ?? []).slice();
     const ts = (r: ParticipantHistoryItem): number => {
@@ -57,27 +56,6 @@ export default function DashboardPage() {
     items.sort((a, b) => ts(b) - ts(a));
     return items.slice(0, 5);
   }, [history]);
-
-  // Hitung nilai terbesar & terkecil dari 5 terbaru
-  const { maxScore, minScore, maxMeta, minMeta } = useMemo(() => {
-    const withScore = latestTop5.filter(
-      (r) => typeof r.grade === "number" && !Number.isNaN(r.grade)
-    );
-    if (withScore.length === 0) {
-      return {
-        maxScore: null as number | null,
-        minScore: null as number | null,
-        maxMeta: undefined as ParticipantHistoryItem | undefined,
-        minMeta: undefined as ParticipantHistoryItem | undefined,
-      };
-    }
-    const grades = withScore.map((r) => r.grade as number);
-    const max = Math.max(...grades);
-    const min = Math.min(...grades);
-    const maxRow = withScore.find((r) => r.grade === max);
-    const minRow = withScore.find((r) => r.grade === min);
-    return { maxScore: max, minScore: min, maxMeta: maxRow, minMeta: minRow };
-  }, [latestTop5]);
 
   const totalHistory = history?.total ?? 0;
 
@@ -96,11 +74,11 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.06),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(56,189,248,0.06),transparent_40%)]">
-      <div className="mx-auto grid w-full max-w-[1200px] grid-cols-1 gap-4 md:grid-cols-[240px,1fr] md:gap-6">
-        <main className="space-y-6">
-          {/* Welcome */}
-          <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-zinc-100 shadow-sm backdrop-blur md:p-6">
-            <div className="flex flex-wrap items-center gap-3 rounded-xl">
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-6 px-4 py-8 md:px-6">
+        {/* Welcome */}
+        <div className="rounded-2xl bg-white/80 p-4 ring-1 ring-zinc-100 shadow-sm backdrop-blur md:p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
               <div className="inline-grid h-11 w-11 place-items-center rounded-xl bg-sky-500 text-white ring-1 ring-sky-200">
                 <User2 className="h-5 w-5" />
               </div>
@@ -112,148 +90,128 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Cards row */}
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Card
-                tone="sky"
-                title="Total Paket Saya"
-                value={String(totalHistory)}
-                subtitle="Riwayat pengerjaan"
-              />
-
-              <Card
-                tone="indigo"
-                title="Nilai Ujian Terbesar"
-                value={maxScore !== null ? String(maxScore) : "—"}
-                subtitle={
-                  maxMeta
-                    ? `${maxMeta.test_details?.title ?? "—"} • ${formatDateTime(
-                        maxMeta.end_date ??
-                          maxMeta.updated_at ??
-                          maxMeta.start_date ??
-                          null
-                      )}`
-                    : "Belum ada nilai"
-                }
-                icon={<Trophy className="h-4 w-4" />}
-              />
-
-              <Card
-                tone="soft"
-                title="Nilai Ujian Terendah"
-                value={minScore !== null ? String(minScore) : "—"}
-                subtitle={
-                  minMeta
-                    ? `${minMeta.test_details?.title ?? "—"} • ${formatDateTime(
-                        minMeta.end_date ??
-                          minMeta.updated_at ??
-                          minMeta.start_date ??
-                          null
-                      )}`
-                    : "Belum ada nilai"
-                }
-                icon={<AlertCircle className="h-4 w-4" />}
-              />
-            </div>
           </div>
 
-          {/* Hasil Latihan Terbaru */}
-          <div className="rounded-2xl bg-white/80 ring-1 ring-zinc-100 shadow-sm backdrop-blur">
-            <div className="border-b border-zinc-100 px-4 py-3 md:px-6">
-              <h3 className="font-semibold">Hasil Latihan Terbaru</h3>
-            </div>
+          {/* baris info */}
+          <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card
+              tone="sky"
+              title="Total Paket Saya"
+              value={String(totalHistory)}
+              subtitle="Riwayat pengerjaan"
+            />
+            <InfoCard
+              title="Aktivitas terbaru"
+              description="Daftar di bawah menampilkan 5 pengerjaan terakhir kamu."
+              tone="indigo"
+            />
+            <InfoCard
+              title="Tips"
+              description="Selesaikan ujian sampai akhir agar status menjadi selesai."
+              tone="zinc"
+            />
+          </div>
+        </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="bg-sky-50/60 text-zinc-700">
-                    <Th>Test</Th>
-                    <Th>Mulai</Th>
-                    <Th>Selesai</Th>
-                    <Th align="right">Nilai</Th>
+        {/* Hasil Latihan Terbaru */}
+        <div className="rounded-2xl bg-white/80 ring-1 ring-zinc-100 shadow-sm backdrop-blur">
+          <div className="border-b border-zinc-100 px-4 py-3 md:px-6">
+            <h3 className="font-semibold text-zinc-900">
+              Hasil Latihan Terbaru
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Menampilkan {latestTop5.length} aktivitas terakhir
+            </p>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="bg-sky-50/60 text-zinc-700">
+                  <Th>Test</Th>
+                  <Th>Mulai</Th>
+                  <Th>Selesai</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading &&
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <tr
+                      key={`skeleton-${i}`}
+                      className={i % 2 ? "bg-zinc-50/40" : "bg-white/50"}
+                    >
+                      <Td>
+                        <div className="h-4 w-56 animate-pulse rounded bg-zinc-200" />
+                      </Td>
+                      <Td>
+                        <div className="h-4 w-40 animate-pulse rounded bg-zinc-200" />
+                      </Td>
+                      <Td>
+                        <div className="h-4 w-40 animate-pulse rounded bg-zinc-200" />
+                      </Td>
+                      <Td>
+                        <div className="h-5 w-16 animate-pulse rounded bg-zinc-200" />
+                      </Td>
+                    </tr>
+                  ))}
+
+                {isError && (
+                  <tr>
+                    <Td colSpan={4}>
+                      <span className="text-red-600">Gagal memuat data.</span>
+                    </Td>
                   </tr>
-                </thead>
-                <tbody>
-                  {isLoading &&
-                    Array.from({ length: 5 }).map((_, i) => (
+                )}
+
+                {!isLoading && !isError && latestTop5.length === 0 && (
+                  <tr>
+                    <Td colSpan={4}>
+                      <span className="text-zinc-600">
+                        Belum ada hasil latihan.
+                      </span>
+                    </Td>
+                  </tr>
+                )}
+
+                {!isLoading &&
+                  !isError &&
+                  latestTop5.map((r, i) => {
+                    const isDone = !!(r.end_date ?? r.updated_at);
+                    return (
                       <tr
-                        key={`skeleton-${i}`}
+                        key={r.id}
                         className={i % 2 ? "bg-zinc-50/40" : "bg-white/50"}
                       >
                         <Td>
-                          <div className="h-4 w-56 animate-pulse rounded bg-zinc-200" />
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-indigo-500/70" />
+                            {r.test_details?.title ?? "—"}
+                          </span>
+                        </Td>
+                        <Td>{formatDateTime(r.start_date)}</Td>
+                        <Td>
+                          {formatDateTime(r.end_date ?? r.updated_at ?? null)}
                         </Td>
                         <Td>
-                          <div className="h-4 w-40 animate-pulse rounded bg-zinc-200" />
-                        </Td>
-                        <Td>
-                          <div className="h-4 w-40 animate-pulse rounded bg-zinc-200" />
-                        </Td>
-                        <Td align="right">
-                          <div className="ml-auto h-5 w-10 animate-pulse rounded bg-zinc-200" />
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                              isDone
+                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100"
+                                : "bg-amber-50 text-amber-700 ring-1 ring-amber-100"
+                            }`}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-current/70" />
+                            {isDone ? "Selesai" : "Sedang dikerjakan"}
+                          </span>
                         </Td>
                       </tr>
-                    ))}
-
-                  {isError && (
-                    <tr>
-                      <Td colSpan={4}>
-                        <span className="text-red-600">Gagal memuat data.</span>
-                      </Td>
-                    </tr>
-                  )}
-
-                  {!isLoading && !isError && latestTop5.length === 0 && (
-                    <tr>
-                      <Td colSpan={4}>
-                        <span className="text-zinc-600">
-                          Belum ada hasil latihan.
-                        </span>
-                      </Td>
-                    </tr>
-                  )}
-
-                  {!isLoading &&
-                    !isError &&
-                    latestTop5.map((r, i) => {
-                      const score =
-                        typeof r.grade === "number" && !Number.isNaN(r.grade)
-                          ? String(r.grade)
-                          : "—";
-                      return (
-                        <tr
-                          key={r.id}
-                          className={i % 2 ? "bg-zinc-50/40" : "bg-white/50"}
-                        >
-                          <Td>
-                            <span className="inline-flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-indigo-500/70" />
-                              {r.test_details?.title ?? "—"}
-                            </span>
-                          </Td>
-                          <Td>{formatDateTime(r.start_date)}</Td>
-                          <Td>
-                            {formatDateTime(r.end_date ?? r.updated_at ?? null)}
-                          </Td>
-                          <Td align="right">
-                            <span
-                              className={`inline-flex min-w-[36px] justify-center rounded-md px-2 py-0.5 font-semibold ${
-                                score === "—"
-                                  ? "bg-zinc-100 text-zinc-500"
-                                  : "bg-indigo-600/10 text-indigo-700 ring-1 ring-indigo-600/15"
-                              }`}
-                            >
-                              {score}
-                            </span>
-                          </Td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );
@@ -271,7 +229,7 @@ function Card({
   title: string;
   value: string;
   subtitle?: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
 }) {
   const theme =
     tone === "sky"
@@ -308,11 +266,51 @@ function Card({
   );
 }
 
+function InfoCard({
+  title,
+  description,
+  tone = "sky",
+}: {
+  title: string;
+  description: string;
+  tone?: "sky" | "indigo" | "zinc";
+}) {
+  const toneMap: Record<
+    typeof tone,
+    { wrap: string; title: string; desc: string }
+  > = {
+    sky: {
+      wrap: "bg-sky-50/80 ring-1 ring-sky-100",
+      title: "text-sky-900",
+      desc: "text-sky-700/80",
+    },
+    indigo: {
+      wrap: "bg-indigo-50/80 ring-1 ring-indigo-100",
+      title: "text-indigo-900",
+      desc: "text-indigo-700/80",
+    },
+    zinc: {
+      wrap: "bg-zinc-50/80 ring-1 ring-zinc-100",
+      title: "text-zinc-900",
+      desc: "text-zinc-700/80",
+    },
+  };
+
+  const t = toneMap[tone];
+
+  return (
+    <div className={`rounded-2xl p-4 ${t.wrap}`}>
+      <p className={`text-sm font-semibold ${t.title}`}>{title}</p>
+      <p className={`mt-1 text-xs leading-relaxed ${t.desc}`}>{description}</p>
+    </div>
+  );
+}
+
 function Th({
   children,
   align = "left",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   align?: "left" | "right";
 }) {
   return (
@@ -331,7 +329,7 @@ function Td({
   align = "left",
   colSpan,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   align?: "left" | "right";
   colSpan?: number;
 }) {
