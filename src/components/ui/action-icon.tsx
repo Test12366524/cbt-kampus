@@ -8,14 +8,15 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MouseEvent, ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 type Props = {
   label: string;
-  onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
+  onClick?: (e: MouseEvent<HTMLButtonElement>) => void | Promise<void>;
   children: ReactNode; // icon
   className?: string;
   variant?: "ghost" | "secondary" | "outline" | "default" | "destructive";
+  disabled?: boolean;
 };
 
 export default function ActionIcon({
@@ -24,6 +25,7 @@ export default function ActionIcon({
   children,
   className,
   variant = "outline",
+  disabled = false,
 }: Props) {
   return (
     <TooltipProvider delayDuration={100}>
@@ -36,6 +38,7 @@ export default function ActionIcon({
             className={cn("h-9 w-9", className)}
             aria-label={label}
             title={label}
+            disabled={disabled}
           >
             {children}
           </Button>

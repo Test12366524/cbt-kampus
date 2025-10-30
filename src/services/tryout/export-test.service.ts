@@ -4,16 +4,22 @@ export interface ExportTestPayload {
   test_id: number;
 }
 
+// sesuai response backend kamu
+export interface ExportTestResponse {
+  code: number;
+  message: string;
+  data: string;
+}
+
 export const testExportApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    // ✅ Export file (Blob)
-    exportTest: builder.mutation<Blob, ExportTestPayload>({
+    exportTest: builder.mutation<ExportTestResponse, ExportTestPayload>({
       query: (body) => ({
         url: `/test/export`,
         method: "POST",
         body,
-        responseHandler: async (response) => await response.blob(),
       }),
+      transformResponse: (res: ExportTestResponse) => res,
     }),
   }),
   overrideExisting: false,

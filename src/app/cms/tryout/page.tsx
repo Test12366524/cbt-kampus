@@ -14,7 +14,7 @@ import {
 import { useExportTestMutation } from "@/services/tryout/export-test.service";
 import { useGetSchoolListQuery } from "@/services/master/school.service";
 import { useGetUsersListQuery } from "@/services/users-management.service";
-import { useGetMeQuery } from "@/services/auth.service"; // ⬅️ untuk tahu role & id user
+import { useGetMeQuery } from "@/services/auth.service";
 import {
   useGetParticipantHistoryListQuery,
   useContinueTestMutation,
@@ -144,6 +144,7 @@ export default function TryoutPage() {
   const [paginate, setPaginate] = useState(10);
   const [search, setSearch] = useState("");
   const [searchBySpecific, setSearchBySpecific] = useState("");
+  const [exportingId, setExportingId] = useState<number | null>(null);
 
   // Filter Prodi
   const [schoolId, setSchoolId] = useState<number | null>(null);
@@ -354,21 +355,23 @@ export default function TryoutPage() {
     }
   };
 
-  const onExport = async (id: number, filename: string) => {
+  const onExport = async (id: number) => {
     try {
-      const blob = await exportTest({ test_id: id }).unwrap();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${filename || "export"}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      setExportingId(id);
+      const res = await exportTest({ test_id: id }).unwrap();
+      await Swal.fire({
+        icon: "success",
+        title: "Export dimulai",
+        text: res.data || res.message,
+      });
     } catch (e) {
       await Swal.fire({
         icon: "error",
         title: "Export gagal",
-        text: String(e),
+        text: e instanceof Error ? e.message : String(e),
       });
+    } finally {
+      setExportingId(null);
     }
   };
 
@@ -617,12 +620,12 @@ export default function TryoutPage() {
 
                               <ActionIcon
                                 label="Export"
-                                onClick={() =>
-                                  onExport(t.id, t.slug || `test-${t.id}`)
-                                }
+                                onClick={() => onExport(t.id)}
+                                disabled={exportingId === t.id}
                               >
                                 <FileDown className="h-4 w-4" />
                               </ActionIcon>
+
                               <ActionIcon
                                 label="Edit"
                                 onClick={() => openEdit(t)}
