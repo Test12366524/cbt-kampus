@@ -80,6 +80,9 @@ export default function ExamPage() {
   const [data, setData] = useState<ContinueTestData | null>(null);
   const lastSaveRef = useRef<Promise<unknown> | null>(null);
 
+  // 🔐 baru: state untuk nentuin ExamGuard dipakai atau enggak
+  const [useGuard, setUseGuard] = useState(false);
+
   // ====== LOAD DATA ======
   useEffect(() => {
     let mounted = true;
@@ -104,6 +107,26 @@ export default function ExamPage() {
       mounted = false;
     };
   }, [categoryId, loadCategory, loadTest, participantTestId]);
+
+  // 🔐 deteksi device: desktop/laptop saja yang pakai guard
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const ua = navigator.userAgent.toLowerCase();
+    // deteksi umum mobile / tablet
+    const isMobileOrTablet =
+      /android|iphone|ipad|ipod|windows phone|mobile|tablet/.test(ua);
+
+    // jaga-jaga kalau user agent gak jelas, pakai lebar layar
+    const isSmallScreen = window.innerWidth < 1024;
+
+    // kalau bukan mobile/tablet dan layarnya cukup besar → pakai guard
+    if (!isMobileOrTablet && !isSmallScreen) {
+      setUseGuard(true);
+    } else {
+      setUseGuard(false);
+    }
+  }, []);
 
   // ====== FLATTEN QUESTIONS ======
   const flat: ParticipantAnswer[] = useMemo(() => {
@@ -380,221 +403,225 @@ export default function ExamPage() {
     );
   });
 
-  return (
-    <ExamGuard
-      maxViolations={3}
-      enforceFullscreen
-      protectBeforeUnload
-      onViolation={(c) => {
-        void c;
-      }}
-      onMaxViolation={() => {
-        void handleFinishCategory();
-      }}
-    >
-      <div className="space-y-6">
-        {/* Top bar */}
-        <div className="flex items-center justify-between">
-          <Link
-            href="/tryout"
-            className="text-sm text-zinc-600 hover:underline"
-          >
-            &larr; Kembali ke Tryout
-          </Link>
+  // ====== CONTENT UTAMA (tanpa guard) ======
+  const content = (
+    <div className="space-y-6">
+      {/* Top bar */}
+      <div className="flex items-center justify-between">
+        <Link href="/tryout" className="text-sm text-zinc-600 hover:underline">
+          &larr; Kembali ke Tryout
+        </Link>
 
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-zinc-500">
-              {testDetails?.title ??
-                data?.test?.test_details?.title ??
-                "Tryout"}
-            </div>
-
-            {hasTimer && (
-              <Badge
-                variant="outline"
-                className={`flex items-center gap-2 border-2 ${
-                  timerDanger
-                    ? "border-red-400 text-red-600"
-                    : "border-sky-300 text-sky-700"
-                }`}
-              >
-                <Clock3 className="h-4 w-4" />
-                <span className="tabular-nums font-mono">{timerString}</span>
-              </Badge>
-            )}
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-zinc-500">
+            {testDetails?.title ?? data?.test?.test_details?.title ?? "Tryout"}
           </div>
 
-          <div />
-        </div>
-
-        {/* Layout: left content + right aside */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
-          {/* Left */}
-          <section className="rounded-3xl border bg-white p-6 shadow-sm">
-            {(loadingCat || loadingTest) && !data ? (
-              <div className="flex h-40 items-center justify-center text-zinc-500">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Memuat soal…
-              </div>
-            ) : !current ? (
-              <div className="text-zinc-600">Tidak ada soal.</div>
-            ) : (
-              <>
-                {/* Header action */}
-                <div className="mb-5 flex items-center justify-between">
-                  <div className="text-sm text-sky-700">
-                    Soal {idx + 1} / {flat.length}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={
-                        current.is_flagged
-                          ? "bg-yellow-200 text-yellow-800"
-                          : "bg-zinc-50"
-                      }
-                    >
-                      {current.is_flagged ? "Ditandai" : "Tidak ditandai"}
-                    </Badge>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleFlag(!current.is_flagged)}
-                      disabled={flagging}
-                      className={
-                        current.is_flagged
-                          ? "border-yellow-500 text-yellow-700"
-                          : undefined
-                      }
-                    >
-                      <Flag className="mr-2 h-4 w-4" />
-                      {current.is_flagged ? "Hapus Tanda" : "Tandai Soal"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleReset}
-                      disabled={resetting}
-                    >
-                      Reset Jawaban
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Pertanyaan */}
-                <div className="prose prose-sm max-w-none">
-                  <SanitizedHtml
-                    className="prose prose-sm max-w-none"
-                    html={
-                      (current.question_details as QuestionDetails).question
-                    }
-                  />
-                </div>
-
-                {/* Opsi/Jawaban */}
-                <div className="mt-5">
-                  <AnswerRenderer
-                    key={current.question_id} // remount saat pindah soal
-                    current={current}
-                    onSave={handleSave}
-                    saving={saving}
-                  />
-                </div>
-
-                {/* Nav Prev/Next */}
-                <div className="mt-8 flex items-center justify-between">
-                  {!isFirst ? (
-                    <Button
-                      variant="outline"
-                      onClick={() => setIdx((v) => v - 1)}
-                    >
-                      <ChevronLeft className="mr-2 h-4 w-4" />
-                      Sebelumnya
-                    </Button>
-                  ) : (
-                    <div />
-                  )}
-                  {!isLast && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setIdx((v) => v + 1)}
-                    >
-                      Selanjutnya
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </>
-            )}
-          </section>
-
-          {/* Right (sticky aside) */}
-          <aside className="top-24 h-max rounded-3xl border bg-white p-4 shadow-sm lg:sticky">
-            {/* Big Timer */}
-            {hasTimer && (
-              <div
-                className={`mb-4 rounded-2xl border p-4 text-center ${
-                  timerDanger
-                    ? "border-red-200 bg-red-50"
-                    : "border-sky-200 bg-sky-50"
-                }`}
-              >
-                <div className="mb-1 text-xs font-semibold text-zinc-600">
-                  Sisa Waktu
-                </div>
-                <div className="flex items-center justify-center gap-2">
-                  <Clock3
-                    className={
-                      timerDanger
-                        ? "h-5 w-5 text-red-600"
-                        : "h-5 w-5 text-sky-700"
-                    }
-                  />
-                  <div
-                    className={`font-mono text-2xl tabular-nums ${
-                      timerDanger ? "text-red-700" : "text-sky-800"
-                    }`}
-                  >
-                    {timerString}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="mb-3 text-sm font-semibold text-zinc-700">
-              Sudah Selesai?
-            </div>
-            <Button
-              onClick={handleFinishCategory}
-              disabled={endingCat || endingSess}
-              className="mb-4 w-full justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700"
+          {hasTimer && (
+            <Badge
+              variant="outline"
+              className={`flex items-center gap-2 border-2 ${
+                timerDanger
+                  ? "border-red-400 text-red-600"
+                  : "border-sky-300 text-sky-700"
+              }`}
             >
-              <CheckCircle2 className="h-4 w-4" />
-              Selesaikan Sesi
-            </Button>
-
-            <div className="mb-2 text-xs font-semibold text-zinc-600">
-              Nomor Soal
-            </div>
-            <div className="grid grid-cols-5 gap-2">{navBadges}</div>
-
-            <div className="mt-4 space-y-2 text-[11px] text-zinc-500">
-              <div>
-                <span className="mr-2 inline-block h-3 w-3 rounded bg-sky-200" />
-                Terjawab
-              </div>
-              <div>
-                <span className="mr-2 inline-block h-3 w-3 rounded bg-yellow-300" />
-                Ditandai
-              </div>
-              <div>
-                <span className="mr-2 inline-block h-3 w-3 rounded bg-zinc-200" />
-                Kosong
-              </div>
-            </div>
-          </aside>
+              <Clock3 className="h-4 w-4" />
+              <span className="tabular-nums font-mono">{timerString}</span>
+            </Badge>
+          )}
         </div>
+
+        <div />
       </div>
-    </ExamGuard>
+
+      {/* Layout: left content + right aside */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
+        {/* Left */}
+        <section className="rounded-3xl border bg-white p-6 shadow-sm">
+          {(loadingCat || loadingTest) && !data ? (
+            <div className="flex h-40 items-center justify-center text-zinc-500">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Memuat soal…
+            </div>
+          ) : !current ? (
+            <div className="text-zinc-600">Tidak ada soal.</div>
+          ) : (
+            <>
+              {/* Header action */}
+              <div className="mb-5 flex items-center justify-between">
+                <div className="text-sm text-sky-700">
+                  Soal {idx + 1} / {flat.length}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={
+                      current.is_flagged
+                        ? "bg-yellow-200 text-yellow-800"
+                        : "bg-zinc-50"
+                    }
+                  >
+                    {current.is_flagged ? "Ditandai" : "Tidak ditandai"}
+                  </Badge>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleFlag(!current.is_flagged)}
+                    disabled={flagging}
+                    className={
+                      current.is_flagged
+                        ? "border-yellow-500 text-yellow-700"
+                        : undefined
+                    }
+                  >
+                    <Flag className="mr-2 h-4 w-4" />
+                    {current.is_flagged ? "Hapus Tanda" : "Tandai Soal"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleReset}
+                    disabled={resetting}
+                  >
+                    Reset Jawaban
+                  </Button>
+                </div>
+              </div>
+
+              {/* Pertanyaan */}
+              <div className="prose prose-sm max-w-none">
+                <SanitizedHtml
+                  className="prose prose-sm max-w-none"
+                  html={(current.question_details as QuestionDetails).question}
+                />
+              </div>
+
+              {/* Opsi/Jawaban */}
+              <div className="mt-5">
+                <AnswerRenderer
+                  key={current.question_id} // remount saat pindah soal
+                  current={current}
+                  onSave={handleSave}
+                  saving={saving}
+                />
+              </div>
+
+              {/* Nav Prev/Next */}
+              <div className="mt-8 flex items-center justify-between">
+                {!isFirst ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIdx((v) => v - 1)}
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Sebelumnya
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                {!isLast && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIdx((v) => v + 1)}
+                  >
+                    Selanjutnya
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Right (sticky aside) */}
+        <aside className="top-24 h-max rounded-3xl border bg-white p-4 shadow-sm lg:sticky">
+          {/* Big Timer */}
+          {hasTimer && (
+            <div
+              className={`mb-4 rounded-2xl border p-4 text-center ${
+                timerDanger
+                  ? "border-red-200 bg-red-50"
+                  : "border-sky-200 bg-sky-50"
+              }`}
+            >
+              <div className="mb-1 text-xs font-semibold text-zinc-600">
+                Sisa Waktu
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <Clock3
+                  className={
+                    timerDanger
+                      ? "h-5 w-5 text-red-600"
+                      : "h-5 w-5 text-sky-700"
+                  }
+                />
+                <div
+                  className={`font-mono text-2xl tabular-nums ${
+                    timerDanger ? "text-red-700" : "text-sky-800"
+                  }`}
+                >
+                  {timerString}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mb-3 text-sm font-semibold text-zinc-700">
+            Sudah Selesai?
+          </div>
+          <Button
+            onClick={handleFinishCategory}
+            disabled={endingCat || endingSess}
+            className="mb-4 w-full justify-center gap-2 rounded-xl bg-sky-600 hover:bg-sky-700"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Selesaikan Sesi
+          </Button>
+
+          <div className="mb-2 text-xs font-semibold text-zinc-600">
+            Nomor Soal
+          </div>
+          <div className="grid grid-cols-5 gap-2">{navBadges}</div>
+
+          <div className="mt-4 space-y-2 text-[11px] text-zinc-500">
+            <div>
+              <span className="mr-2 inline-block h-3 w-3 rounded bg-sky-200" />
+              Terjawab
+            </div>
+            <div>
+              <span className="mr-2 inline-block h-3 w-3 rounded bg-yellow-300" />
+              Ditandai
+            </div>
+            <div>
+              <span className="mr-2 inline-block h-3 w-3 rounded bg-zinc-200" />
+              Kosong
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
   );
+
+  // 👉 di sini baru diputusin: pakai guard atau tidak
+  if (useGuard) {
+    return (
+      <ExamGuard
+        maxViolations={3}
+        enforceFullscreen
+        protectBeforeUnload
+        onViolation={(c) => {
+          void c;
+        }}
+        onMaxViolation={() => {
+          void handleFinishCategory();
+        }}
+      >
+        {content}
+      </ExamGuard>
+    );
+  }
+
+  // mobile/tablet → langsung render tanpa guard
+  return content;
 }
 
 /** Renderer per tipe soal */

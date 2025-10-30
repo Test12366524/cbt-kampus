@@ -14,7 +14,7 @@ import { formatDate } from "@/lib/format-utils";
 
 import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
-import { ParticipantHistoryDetail } from "./detail/page";
+import { ParticipantHistoryDetail } from "../../../../components/modal/detail/page";
 
 export default function RankPage() {
   const router = useRouter();
