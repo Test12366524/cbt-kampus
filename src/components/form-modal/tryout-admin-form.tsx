@@ -1,3 +1,4 @@
+// components/form-modal/tryout-admin-form.tsx
 "use client";
 
 import * as React from "react";
@@ -10,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combo-box";
 
 import type { School } from "@/types/master/school";
+import type { Users } from "@/types/user";
 import { useGetSchoolListQuery } from "@/services/master/school.service";
+import { useGetUsersListQuery } from "@/services/users-management.service";
 
 /** === Shared enums (sinkron dgn service) === */
 export type TimerType = string;
@@ -37,6 +40,7 @@ export type FormState = {
   max_attempts: string;
   is_graded: boolean;
   is_explanation_released: boolean;
+  user_id: number; // ⬅️ NEW: pengawas
 };
 
 type Props = {
@@ -81,6 +85,7 @@ export default function TryoutForm({
 }: Props) {
   const [form, setForm] = React.useState<FormState>(initial);
 
+  // Prodi
   const [schoolSearch, setSchoolSearch] = React.useState<string>("");
   const { data: schoolListResp, isFetching: loadingSchools } =
     useGetSchoolListQuery(
@@ -88,6 +93,18 @@ export default function TryoutForm({
       { refetchOnMountOrArgChange: true }
     );
   const schools: School[] = schoolListResp?.data ?? [];
+
+  // Pengawas (role_id = 3)
+  const [pengawasSearch, setPengawasSearch] = React.useState<string>("");
+  const {
+    data: pengawasResp,
+    isFetching: loadingPengawas,
+    refetch: refetchPengawas,
+  } = useGetUsersListQuery(
+    { page: 1, paginate: 30, search: pengawasSearch, role_id: 3 },
+    { refetchOnMountOrArgChange: true }
+  );
+  const pengawasList: Users[] = pengawasResp?.data ?? [];
 
   React.useEffect(() => {
     // pastikan date-only saat form diisi dari editing
@@ -100,6 +117,8 @@ export default function TryoutForm({
 
   const validate = (): string | null => {
     if (!form.title.trim()) return "Judul wajib diisi.";
+    if (!form.school_id) return "Prodi wajib diisi.";
+    if (!form.user_id) return "Pengawas wajib dipilih.";
     if (
       form.timer_type === "per_test" &&
       (!form.total_time || form.total_time <= 0)
@@ -110,17 +129,9 @@ export default function TryoutForm({
   };
 
   const handleSubmit = async () => {
-    if (!form.school_id) {
-      void Swal.fire({
-        icon: "warning",
-        title: "Pilih Prodi",
-        text: "Field prodi wajib diisi.",
-      });
-      return;
-    }
     const err = validate();
     if (err) {
-      alert(err);
+      void Swal.fire({ icon: "warning", title: err });
       return;
     }
     await onSubmit(form);
@@ -145,6 +156,21 @@ export default function TryoutForm({
             isLoading={loadingSchools}
             placeholder="Pilih Prodi"
             getOptionLabel={(s) => s.name}
+          />
+        </div>
+
+        <div>
+          <Label>Pengawas *</Label>
+          <div className="h-2" />
+          <Combobox<Users>
+            value={form.user_id}
+            onChange={(value) => setForm({ ...form, user_id: value })}
+            onSearchChange={setPengawasSearch}
+            onOpenRefetch={() => refetchPengawas()}
+            data={pengawasList}
+            isLoading={loadingPengawas}
+            placeholder="Pilih Pengawas"
+            getOptionLabel={(u) => `${u.name} (${u.email})`}
           />
         </div>
 
@@ -239,7 +265,7 @@ export default function TryoutForm({
           </div>
         </div>
 
-        {/* ⬇️ Ganti ke type="date", kirim selalu sebagai YYYY-MM-DD */}
+        {/* ⬇️ type="date", kirim selalu sebagai YYYY-MM-DD */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Tanggal Mulai</Label>

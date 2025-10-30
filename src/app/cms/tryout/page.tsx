@@ -1,8 +1,10 @@
+// app/cms/tryout/paket-latihan/page.tsx
 "use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Swal from "sweetalert2";
+import { skipToken } from "@reduxjs/toolkit/query";
 import {
   useGetTestListQuery,
   useCreateTestMutation,
@@ -11,7 +13,16 @@ import {
 } from "@/services/tryout/test.service";
 import { useExportTestMutation } from "@/services/tryout/export-test.service";
 import { useGetSchoolListQuery } from "@/services/master/school.service";
+import { useGetUsersListQuery } from "@/services/users-management.service";
+import { useGetMeQuery } from "@/services/auth.service"; // ⬅️ untuk tahu role & id user
+import {
+  useGetParticipantHistoryListQuery,
+  useContinueTestMutation,
+  useEndSessionMutation,
+} from "@/services/student/tryout.service";
 import type { Test } from "@/types/tryout/test";
+import type { Users } from "@/types/user";
+import type { ParticipantHistoryItem } from "@/types/student/tryout";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +33,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   ListChecks,
@@ -31,6 +43,9 @@ import {
   Plus,
   RefreshCw,
   Trophy,
+  Users as UsersIcon,
+  CheckCircle2,
+  RotateCcw,
 } from "lucide-react";
 import Pager from "@/components/ui/tryout-pagination";
 import ActionIcon from "@/components/ui/action-icon";
@@ -64,6 +79,7 @@ type TestPayload = {
   max_attempts?: string | null;
   is_graded?: boolean;
   is_explanation_released?: boolean;
+  user_id: number; // pengawas
 };
 
 const emptyForm: FormState = {
@@ -85,25 +101,42 @@ const emptyForm: FormState = {
   max_attempts: "",
   is_graded: false,
   is_explanation_released: false,
+  user_id: 0,
 };
 
 type School = { id: number; name: string; email?: string };
 
+type TestRow = Test & {
+  user_id?: number | null;
+  pengawas_name?: string | null;
+};
+
 /** Pastikan format YYYY-MM-DD (date only) */
 function dateOnly(input?: string | null): string {
   if (!input) return "";
-  // Jika sudah "YYYY-MM-DD" biarkan saja
   if (/^\d{4}-\d{2}-\d{2}$/.test(input)) return input;
-  // Jika ada waktu, ambil 10 pertama
   const s = String(input);
   if (s.includes("T") || s.includes(" ")) return s.slice(0, 10);
-  // fallback parsing
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return "";
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/** bantu ambil nama peserta dari berbagai kemungkinan field tanpa any */
+function getParticipantName(p: ParticipantHistoryItem): string {
+  const p1 = (p as { user_name?: string }).user_name;
+  if (p1) return p1;
+
+  const p2 = (p as { user?: { name?: string } }).user?.name;
+  if (p2) return p2;
+
+  const p3 = (p as { participant_name?: string }).participant_name;
+  if (p3) return p3;
+
+  return `User #${p.user_id}`;
 }
 
 export default function TryoutPage() {
@@ -116,20 +149,54 @@ export default function TryoutPage() {
   const [schoolId, setSchoolId] = useState<number | null>(null);
   const [schoolSearch, setSchoolSearch] = useState("");
 
+  // ambil user login
+  const { data: me } = useGetMeQuery();
+  const roles = me?.roles ?? [];
+  const isSuperadmin = roles.some((r) => r.name === "superadmin");
+  const isPengawas = roles.some((r) => r.name === "pengawas");
+  const myId = me?.id ?? 0;
+
   const { data: schoolResp, isLoading: loadingSchools } = useGetSchoolListQuery(
     { page: 1, paginate: 100, search: schoolSearch || "" }
   );
   const schools: School[] = useMemo(() => schoolResp?.data ?? [], [schoolResp]);
 
-  const { data, isLoading, refetch } = useGetTestListQuery({
+  // susun argumen query
+  const baseQuery = {
     page,
     paginate,
     search,
     searchBySpecific,
     orderBy: "tests.updated_at",
-    orderDirection: "desc",
+    orderDirection: "desc" as const,
     school_id: schoolId ?? undefined,
+  };
+
+  // kalau dia pengawas (role_id=3) dan BUKAN superadmin → paksa filter by user_id
+  const finalQuery =
+    !isSuperadmin && isPengawas
+      ? {
+          ...baseQuery,
+          searchBySpecific: "user_id" as const,
+          search: String(myId),
+        }
+      : baseQuery;
+
+  // List ujian
+  const { data, isLoading, refetch } = useGetTestListQuery(finalQuery);
+
+  // List pengawas (role_id = 3) untuk mapping nama di tabel
+  const { data: pengawasResp } = useGetUsersListQuery({
+    page: 1,
+    paginate: 200,
+    search: "",
+    role_id: 3,
   });
+  const pengawasMap = useMemo(() => {
+    const m = new Map<number, string>();
+    (pengawasResp?.data ?? []).forEach((u: Users) => m.set(u.id, u.name));
+    return m;
+  }, [pengawasResp]);
 
   const [createTest, { isLoading: creating }] = useCreateTestMutation();
   const [updateTest, { isLoading: updating }] = useUpdateTestMutation();
@@ -137,9 +204,33 @@ export default function TryoutPage() {
   const [exportTest] = useExportTestMutation();
 
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Test | null>(null);
+  const [editing, setEditing] = useState<TestRow | null>(null);
 
-  const toForm = (t: Test): FormState => ({
+  // ⬇️ state untuk monitoring
+  const [monitoringTest, setMonitoringTest] = useState<TestRow | null>(null);
+
+  // query peserta ujian untuk monitoring
+  const {
+    data: monitorResp,
+    isFetching: loadingMonitor,
+    refetch: refetchMonitor,
+  } = useGetParticipantHistoryListQuery(
+    monitoringTest
+      ? {
+          page: 1,
+          paginate: 200,
+          test_id: monitoringTest.id,
+          // kalau pengawas → batasi by user_id pengawas
+          ...(isSuperadmin ? {} : { user_id: myId }),
+        }
+      : skipToken
+  );
+
+  const [continueTestAdmin, { isLoading: continuingAdmin }] =
+    useContinueTestMutation();
+  const [endSessionAdmin, { isLoading: endingAdmin }] = useEndSessionMutation();
+
+  const toForm = (t: TestRow): FormState => ({
     school_id: t.school_id,
     title: t.title,
     sub_title: t.sub_title ?? "",
@@ -152,13 +243,13 @@ export default function TryoutPage() {
     assessment_type: t.assessment_type as AssessmentType,
     timer_type: t.timer_type as TimerType,
     score_type: (t.score_type as ScoreType) ?? "default",
-    // normalisasi untuk input type="date"
     start_date: dateOnly(t.start_date),
     end_date: dateOnly(t.end_date),
     code: t.code ?? "",
     max_attempts: t.max_attempts ?? "",
     is_graded: t.is_graded,
     is_explanation_released: t.is_explanation_released,
+    user_id: t.user_id ?? 0,
   });
 
   const toPayload = (f: FormState): TestPayload => {
@@ -178,13 +269,13 @@ export default function TryoutPage() {
       max_attempts: f.max_attempts || "",
       is_graded: f.is_graded,
       is_explanation_released: f.is_explanation_released,
+      user_id: Number(f.user_id || 0),
     };
 
     if (f.timer_type === "per_test") {
       payload.total_time = Number(f.total_time || 0);
     }
 
-    // ⬇️ KIRIM tanggal jika diisi, SELALU dalam format YYYY-MM-DD
     const sd = dateOnly(f.start_date);
     const ed = dateOnly(f.end_date);
     if (sd) payload.start_date = sd;
@@ -194,21 +285,30 @@ export default function TryoutPage() {
   };
 
   const openCreate = () => {
-    setEditing(null);
-    setOpen(true);
+    // kalau pengawas, saat create langsung set ke id dia
+    if (!isSuperadmin && isPengawas) {
+      setEditing(null);
+      setOpen(true);
+    } else {
+      setEditing(null);
+      setOpen(true);
+    }
   };
 
-  const openEdit = (t: Test) => {
+  const openEdit = (t: TestRow) => {
     setEditing(t);
     setOpen(true);
   };
 
-  const onSubmit = async (values: FormState) => {
+  const onSubmit = async (values: FormState): Promise<boolean> => {
     try {
+      const fixedValues =
+        !isSuperadmin && isPengawas ? { ...values, user_id: myId } : values;
+
       if (editing) {
         const res = await updateTest({
           id: editing.id,
-          payload: toPayload(values),
+          payload: toPayload(fixedValues),
         }).unwrap();
         await Swal.fire({
           icon: "success",
@@ -216,20 +316,18 @@ export default function TryoutPage() {
           text: `Test "${res.title}" diperbarui.`,
         });
       } else {
-        const res = await createTest(toPayload(values)).unwrap();
+        const res = await createTest(toPayload(fixedValues)).unwrap();
         await Swal.fire({
           icon: "success",
           title: "Created",
           text: `Test "${res.title}" dibuat.`,
         });
       }
-      // ✅ sukses: tutup modal
-      setOpen(false);
-      setEditing(null);
       refetch();
+      return true;
     } catch (e) {
-      // ❌ gagal: modal tetap terbuka
       await Swal.fire({ icon: "error", title: "Gagal", text: String(e) });
+      return false;
     }
   };
 
@@ -274,7 +372,72 @@ export default function TryoutPage() {
     }
   };
 
-  const tableRows = useMemo(() => data?.data ?? [], [data]);
+  // === handler monitoring ===
+  async function handleForceFinish(participantTestId: number, nama: string) {
+    const ask = await Swal.fire({
+      icon: "warning",
+      title: "Selesaikan ujian ini?",
+      text: `Peserta "${nama}" akan langsung diselesaikan.`,
+      showCancelButton: true,
+      confirmButtonText: "Ya, selesaikan",
+      cancelButtonText: "Batal",
+    });
+    if (!ask.isConfirmed) return;
+    try {
+      await endSessionAdmin(participantTestId).unwrap();
+      await Swal.fire({
+        icon: "success",
+        title: "Berhasil",
+        text: "Sesi diselesaikan.",
+      });
+      void refetchMonitor();
+    } catch (e) {
+      await Swal.fire({
+        icon: "error",
+        title: "Gagal menyelesaikan",
+        text: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  async function handleReopen(participantTestId: number, nama: string) {
+    const ask = await Swal.fire({
+      icon: "question",
+      title: "Izinkan mengerjakan lagi?",
+      text: `Peserta "${nama}" akan bisa lanjut lagi.`,
+      showCancelButton: true,
+      confirmButtonText: "Ya, izinkan",
+      cancelButtonText: "Batal",
+    });
+    if (!ask.isConfirmed) return;
+    try {
+      await continueTestAdmin(participantTestId).unwrap();
+      await Swal.fire({
+        icon: "success",
+        title: "Dibuka lagi",
+        text: "Peserta bisa lanjut lagi.",
+      });
+      void refetchMonitor();
+    } catch (e) {
+      await Swal.fire({
+        icon: "error",
+        title: "Gagal membuka",
+        text: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  const tableRows: TestRow[] = useMemo(
+    () => (data?.data as TestRow[]) ?? [],
+    [data]
+  );
+
+  // pecah data monitor jadi dua
+  const monitorList: ParticipantHistoryItem[] = monitorResp?.data ?? [];
+  const ongoingList = monitorList.filter(
+    (p) => Number(p.is_ongoing) === 1 && Number(p.is_completed) !== 1
+  );
+  const completedList = monitorList.filter((p) => Number(p.is_completed) === 1);
 
   return (
     <>
@@ -318,7 +481,8 @@ export default function TryoutPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && refetch()}
                 />
-                {/* Filter Prodi (school_id) */}
+
+                {/* Filter Prodi */}
                 <div className="flex items-center gap-2 w-full md:w-80">
                   <div className="flex w-full gap-2">
                     <Combobox<School>
@@ -347,11 +511,14 @@ export default function TryoutPage() {
                     )}
                   </div>
                 </div>
+
                 <Button
                   variant="outline"
                   onClick={() => {
                     setSearch("");
-                    setSearchBySpecific("");
+                    if (isSuperadmin) {
+                      setSearchBySpecific("");
+                    }
                     setSchoolId(null);
                     setPage(1);
                     refetch();
@@ -369,6 +536,7 @@ export default function TryoutPage() {
                   <tr className="text-left">
                     <th className="p-3">Judul</th>
                     <th className="p-3">Prodi</th>
+                    <th className="p-3">Pengawas</th>
                     <th className="p-3">Waktu (detik)</th>
                     <th className="p-3">Shuffle</th>
                     <th className="p-3">Mulai</th>
@@ -379,85 +547,102 @@ export default function TryoutPage() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td className="p-4" colSpan={9}>
+                      <td className="p-4" colSpan={10}>
                         Loading…
                       </td>
                     </tr>
                   ) : tableRows.length ? (
-                    tableRows.map((t) => (
-                      <tr key={t.id} className="border-t align-top">
-                        <td className="p-3">
-                          <div className="font-medium">{t.title}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {t.sub_title || "-"}
-                          </div>
-                        </td>
-                        <td className="p-3">{t.school_name}</td>
-                        <td className="p-3">
-                          {t.timer_type === "per_category" ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : (
-                            t.total_time
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <Badge
-                            variant={
-                              t.shuffle_questions ? "default" : "secondary"
-                            }
-                          >
-                            {t.shuffle_questions ? "Yes" : "No"}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          {t.start_date ? displayDate(t.start_date) : "-"}
-                        </td>
-                        <td className="p-3">
-                          {t.end_date ? displayDate(t.end_date) : "-"}
-                        </td>
-                        <td className="p-3">
-                          <div className="flex gap-1 justify-end">
-                            <Link
-                              href={`/cms/tryout/paket-latihan/${t.id}/questions-category`}
-                            >
-                              <ActionIcon label="Bank Soal">
-                                <ListChecks className="h-4 w-4" />
-                              </ActionIcon>
-                            </Link>
-
-                            <Link href={`/cms/tryout/rank?test_id=${t.id}`}>
-                              <ActionIcon label="Rank">
-                                <Trophy className="h-4 w-4" />
-                              </ActionIcon>
-                            </Link>
-
-                            <ActionIcon
-                              label="Export"
-                              onClick={() =>
-                                onExport(t.id, t.slug || `test-${t.id}`)
+                    tableRows.map((t) => {
+                      const name =
+                        t.pengawas_name ??
+                        (t.user_id ? pengawasMap.get(t.user_id) : undefined) ??
+                        "-";
+                      return (
+                        <tr key={t.id} className="border-t align-top">
+                          <td className="p-3">
+                            <div className="font-medium">{t.title}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {t.sub_title || "-"}
+                            </div>
+                          </td>
+                          <td className="p-3">{t.school_name}</td>
+                          <td className="p-3">{name}</td>
+                          <td className="p-3">
+                            {t.timer_type === "per_category" ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : (
+                              t.total_time
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <Badge
+                              variant={
+                                t.shuffle_questions ? "default" : "secondary"
                               }
                             >
-                              <FileDown className="h-4 w-4" />
-                            </ActionIcon>
-                            <ActionIcon
-                              label="Edit"
-                              onClick={() => openEdit(t)}
-                            >
-                              <PenLine className="h-4 w-4" />
-                            </ActionIcon>
-                            <ActionIcon
-                              label="Hapus"
-                              onClick={() => onDelete(t.id, t.title)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </ActionIcon>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                              {t.shuffle_questions ? "Yes" : "No"}
+                            </Badge>
+                          </td>
+                          <td className="p-3">
+                            {t.start_date ? displayDate(t.start_date) : "-"}
+                          </td>
+                          <td className="p-3">
+                            {t.end_date ? displayDate(t.end_date) : "-"}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex gap-1 justify-end">
+                              <Link
+                                href={`/cms/tryout/paket-latihan/${t.id}/questions-category`}
+                              >
+                                <ActionIcon label="Bank Soal">
+                                  <ListChecks className="h-4 w-4" />
+                                </ActionIcon>
+                              </Link>
+
+                              <Link href={`/cms/tryout/rank?test_id=${t.id}`}>
+                                <ActionIcon label="Rank">
+                                  <Trophy className="h-4 w-4" />
+                                </ActionIcon>
+                              </Link>
+
+                              {/* tombol monitoring */}
+                              <ActionIcon
+                                label="Monitoring Peserta"
+                                onClick={() => {
+                                  setMonitoringTest(t);
+                                }}
+                              >
+                                <UsersIcon className="h-4 w-4" />
+                              </ActionIcon>
+
+                              <ActionIcon
+                                label="Export"
+                                onClick={() =>
+                                  onExport(t.id, t.slug || `test-${t.id}`)
+                                }
+                              >
+                                <FileDown className="h-4 w-4" />
+                              </ActionIcon>
+                              <ActionIcon
+                                label="Edit"
+                                onClick={() => openEdit(t)}
+                              >
+                                <PenLine className="h-4 w-4" />
+                              </ActionIcon>
+                              <ActionIcon
+                                label="Hapus"
+                                onClick={() => onDelete(t.id, t.title)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </ActionIcon>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
-                      <td className="p-4" colSpan={9}>
+                      <td className="p-4" colSpan={10}>
                         Tidak ada data.
                       </td>
                     </tr>
@@ -493,11 +678,213 @@ export default function TryoutPage() {
 
             <TryoutForm
               key={editing ? editing.id : "new"}
-              initial={editing ? toForm(editing) : emptyForm}
+              initial={
+                editing
+                  ? toForm(editing)
+                  : !isSuperadmin && isPengawas
+                  ? { ...emptyForm, user_id: myId }
+                  : emptyForm
+              }
               submitting={creating || updating}
-              onCancel={() => setOpen(false)}
-              onSubmit={onSubmit}
+              onCancel={() => {
+                setOpen(false);
+                setEditing(null);
+              }}
+              onSubmit={async (values) => {
+                const ok = await onSubmit(values);
+                if (ok) {
+                  setOpen(false);
+                  setEditing(null);
+                }
+              }}
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog Monitoring */}
+        <Dialog
+          open={!!monitoringTest}
+          onOpenChange={(v) => {
+            if (!v) {
+              setMonitoringTest(null);
+            }
+          }}
+        >
+          <DialogContent className="max-h-[95vh] overflow-y-auto sm:max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>
+                Monitoring Ujian
+                {monitoringTest ? ` – ${monitoringTest.title}` : ""}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-sm text-muted-foreground">
+                {isSuperadmin
+                  ? "Anda melihat semua peserta."
+                  : "Anda melihat peserta pada ujian yang diawasi Anda."}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => refetchMonitor()}
+                disabled={loadingMonitor}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
+
+            {/* Sedang mengerjakan */}
+            <div className="mb-6 space-y-2">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Badge variant="outline">Sedang mengerjakan</Badge>
+                <span className="text-xs text-muted-foreground">
+                  {ongoingList.length} peserta
+                </span>
+              </h3>
+              <div className="rounded-md border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="p-2 text-left">Peserta</th>
+                      <th className="p-2 text-left">Mulai</th>
+                      <th className="p-2 text-left">Status</th>
+                      <th className="p-2 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingMonitor ? (
+                      <tr>
+                        <td className="p-3" colSpan={4}>
+                          Memuat...
+                        </td>
+                      </tr>
+                    ) : ongoingList.length ? (
+                      ongoingList.map((p) => {
+                        const nama = getParticipantName(p);
+                        return (
+                          <tr key={p.id} className="border-t">
+                            <td className="p-2">
+                              <div className="font-medium">{nama}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                User ID: {p.user_id}
+                              </div>
+                            </td>
+                            <td className="p-2 text-xs">
+                              {p.started_at ? displayDate(p.started_at) : "-"}
+                            </td>
+                            <td className="p-2">
+                              <Badge variant="outline" className="bg-amber-50">
+                                Ongoing
+                              </Badge>
+                            </td>
+                            <td className="p-2 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleForceFinish(p.id, nama)}
+                                disabled={endingAdmin}
+                              >
+                                <CheckCircle2 className="mr-1 h-3 w-3" />
+                                Selesaikan
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td className="p-3" colSpan={4}>
+                          Tidak ada yang sedang mengerjakan.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Sudah selesai */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Badge variant="outline" className="bg-emerald-50">
+                  Sudah selesai
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {completedList.length} peserta
+                </span>
+              </h3>
+              <div className="rounded-md border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="p-2 text-left">Peserta</th>
+                      <th className="p-2 text-left">Selesai</th>
+                      <th className="p-2 text-left">Status</th>
+                      <th className="p-2 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingMonitor ? (
+                      <tr>
+                        <td className="p-3" colSpan={4}>
+                          Memuat...
+                        </td>
+                      </tr>
+                    ) : completedList.length ? (
+                      completedList.map((p) => {
+                        const nama = getParticipantName(p);
+                        return (
+                          <tr key={p.id} className="border-t">
+                            <td className="p-2">
+                              <div className="font-medium">{nama}</div>
+                              <div className="text-[10px] text-muted-foreground">
+                                User ID: {p.user_id}
+                              </div>
+                            </td>
+                            <td className="p-2 text-xs">
+                              {p.ended_at ? displayDate(p.ended_at) : "-"}
+                            </td>
+                            <td className="p-2">
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50"
+                              >
+                                Completed
+                              </Badge>
+                            </td>
+                            <td className="p-2 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleReopen(p.id, nama)}
+                                disabled={continuingAdmin}
+                              >
+                                <RotateCcw className="mr-1 h-3 w-3" />
+                                Buka lagi
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td className="p-3" colSpan={4}>
+                          Belum ada yang selesai.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMonitoringTest(null)}>
+                Tutup
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

@@ -151,9 +151,14 @@ export type QuestionGroup = {
   questions: ParticipantAnswer[];
 };
 
-// ─── LIST / HISTORY ──────────────────────────────────────────────────────────
 export type ParticipantHistoryItem = ParticipantTest & {
   participant_question_categories?: ParticipantQuestionCategory[];
+
+  is_ongoing?: 0 | 1;
+  is_completed?: 0 | 1;
+
+  started_at?: string | null;
+  ended_at?: string | null;
 };
 
 export type PaginatedResponse<T> = {

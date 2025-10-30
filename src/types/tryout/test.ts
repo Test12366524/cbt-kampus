@@ -22,6 +22,8 @@ export interface Test {
   created_at: string;
   updated_at: string;
   school_name: string;
+  user_id: number | null;
+  pengawas_name: string | null;
 }
 
 // ===== API enums yang dipakai payload =====

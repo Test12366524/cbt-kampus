@@ -69,9 +69,6 @@ export default function RankPage() {
           <Button variant="outline" onClick={() => router.back()}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
           </Button>
-          <div className="text-sm text-muted-foreground">
-            Test ID: <span className="font-medium">{testIdRaw}</span>
-          </div>
         </div>
 
         <Card>
