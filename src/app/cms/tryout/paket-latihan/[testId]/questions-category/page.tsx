@@ -134,9 +134,11 @@ export default function TestCategoriesPage() {
   const onSubmit = async () => {
     const err = validate();
     if (err) {
+      // validasi gagal → modal tetep kebuka
       await Swal.fire({ icon: "warning", title: "Validasi", text: err });
       return;
     }
+
     try {
       if (editing) {
         await updateCat({
@@ -144,23 +146,33 @@ export default function TestCategoriesPage() {
           id: editing.id,
           payload: form,
         }).unwrap();
-        await Swal.fire({
-          icon: "success",
-          title: "Updated",
-          text: "Kategori diperbarui.",
-        });
       } else {
         await createCat({ test_id: testId, payload: form }).unwrap();
-        await Swal.fire({
-          icon: "success",
-          title: "Created",
-          text: "Kategori ditambahkan.",
-        });
       }
+
+      // ⬇️ sukses → TUTUP modal + bersihin state
       setOpen(false);
+      setEditing(null);
+      setForm(emptyForm);
       refetch();
+
+      // ⬇️ baru munculin swal, biar focus trap dialog sudah lepas
+      setTimeout(() => {
+        void Swal.fire({
+          icon: "success",
+          title: editing ? "Updated" : "Created",
+          text: editing ? "Kategori diperbarui." : "Kategori ditambahkan.",
+        });
+      }, 30);
     } catch (e) {
-      await Swal.fire({ icon: "error", title: "Gagal", text: String(e) });
+      // ⬇️ ERROR → modal TETEP KEBUKA
+      setTimeout(() => {
+        void Swal.fire({
+          icon: "error",
+          title: "Gagal",
+          text: e instanceof Error ? e.message : String(e),
+        });
+      }, 30);
     }
   };
 
@@ -185,6 +197,13 @@ export default function TestCategoriesPage() {
   return (
     <>
       <SiteHeader title="Kategori Soal" />
+      {open && (
+        <div className="fixed inset-0 z-40 pointer-events-auto">
+          <div className="absolute inset-0 bg-black/55" />
+          <div className="absolute -top-24 right-0 h-64 w-64 bg-black/30 blur-3xl rounded-full" />
+        </div>
+      )}
+
       <div className="p-4 md:p-6 space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => router.back()}>
@@ -319,8 +338,8 @@ export default function TestCategoriesPage() {
         />
 
         {/* Modal */}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-xl">
+        <Dialog open={open} modal={false} onOpenChange={setOpen}>
+          <DialogContent withOverlay={false} className="max-w-xl z-50">
             <DialogHeader>
               <DialogTitle>
                 {editing ? "Edit Kategori" : "Tambah Kategori"}
@@ -381,7 +400,14 @@ export default function TestCategoriesPage() {
             </div>
 
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={() => setOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setOpen(false);
+                  setEditing(null);
+                  setForm(emptyForm);
+                }}
+              >
                 Batal
               </Button>
               <Button onClick={onSubmit} disabled={creating || updating}>
