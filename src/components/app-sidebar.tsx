@@ -187,7 +187,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
               <a href="#">
                 <Image
                   src="/logo-stikes.jpg"
-                  alt="Pengajuan Cuti"
+                  alt="CBT Kampus"
                   width={32}
                   height={32}
                 />

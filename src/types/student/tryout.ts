@@ -153,10 +153,11 @@ export type QuestionGroup = {
 
 export type ParticipantHistoryItem = ParticipantTest & {
   participant_question_categories?: ParticipantQuestionCategory[];
-
+  participant_test_question_category_id?: number;
+  test_id?: number;
   is_ongoing?: 0 | 1;
   is_completed?: 0 | 1;
-
+  is_graded?: 0 | 1;
   started_at?: string | null;
   ended_at?: string | null;
 };

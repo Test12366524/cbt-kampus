@@ -212,6 +212,7 @@ export default function RankPage() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         participantTestId={selectedParticipantId}
+        testId={testId}
       />
     </>
   );

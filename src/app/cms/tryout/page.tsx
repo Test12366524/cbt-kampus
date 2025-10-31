@@ -17,7 +17,7 @@ import { useGetUsersListQuery } from "@/services/users-management.service";
 import { useGetMeQuery } from "@/services/auth.service";
 import {
   useGetParticipantHistoryListQuery,
-  useContinueTestMutation,
+  useRegenerateTestMutation,
   useEndSessionMutation,
 } from "@/services/student/tryout.service";
 import type { Test } from "@/types/tryout/test";
@@ -210,25 +210,50 @@ export default function TryoutPage() {
   // ⬇️ state untuk monitoring
   const [monitoringTest, setMonitoringTest] = useState<TestRow | null>(null);
 
-  // query peserta ujian untuk monitoring
+  const baseMonitorQuery = monitoringTest
+    ? {
+        page: 1,
+        paginate: 200,
+        test_id: monitoringTest.id,
+        // kalau pengawas → batasi by user_id pengawas
+        ...(isSuperadmin ? {} : { user_id: myId }),
+      }
+    : skipToken;
+
+  // query peserta ujian yang SEDANG ONGOING
   const {
-    data: monitorResp,
-    isFetching: loadingMonitor,
-    refetch: refetchMonitor,
+    data: ongoingResp,
+    isFetching: loadingOngoing,
+    refetch: refetchOngoing,
   } = useGetParticipantHistoryListQuery(
-    monitoringTest
-      ? {
-          page: 1,
-          paginate: 200,
-          test_id: monitoringTest.id,
-          // kalau pengawas → batasi by user_id pengawas
-          ...(isSuperadmin ? {} : { user_id: myId }),
-        }
+    // Hanya ambil yang is_ongoing = 1 dan BUKAN completed
+    baseMonitorQuery !== skipToken
+      ? { ...baseMonitorQuery, is_ongoing: 1 }
       : skipToken
   );
 
-  const [continueTestAdmin, { isLoading: continuingAdmin }] =
-    useContinueTestMutation();
+  // query peserta ujian yang SUDAH SELESAI
+  const {
+    data: completedResp,
+    isFetching: loadingCompleted,
+    refetch: refetchCompleted,
+  } = useGetParticipantHistoryListQuery(
+    // Hanya ambil yang is_completed = 1
+    baseMonitorQuery !== skipToken
+      ? { ...baseMonitorQuery, is_completed: 1 }
+      : skipToken
+  );
+
+  // Gabungkan status loading
+  const loadingMonitor = loadingOngoing || loadingCompleted;
+
+  // Gabungkan fungsi refetch
+  async function refetchMonitor() {
+    await Promise.all([refetchOngoing(), refetchCompleted()]);
+  }
+
+  const [regenerateTest, { isLoading: continuingAdmin }] =
+    useRegenerateTestMutation();
   const [endSessionAdmin, { isLoading: endingAdmin }] = useEndSessionMutation();
 
   const toForm = (t: TestRow): FormState => ({
@@ -414,7 +439,7 @@ export default function TryoutPage() {
     });
     if (!ask.isConfirmed) return;
     try {
-      await continueTestAdmin(participantTestId).unwrap();
+      await regenerateTest(participantTestId).unwrap();
       await Swal.fire({
         icon: "success",
         title: "Dibuka lagi",
@@ -435,13 +460,8 @@ export default function TryoutPage() {
     [data]
   );
 
-  // pecah data monitor jadi dua
-  const monitorList: ParticipantHistoryItem[] = monitorResp?.data ?? [];
-  const ongoingList = monitorList.filter(
-    (p) => Number(p.is_ongoing) === 1 && Number(p.is_completed) !== 1
-  );
-  const completedList = monitorList.filter((p) => Number(p.is_completed) === 1);
-
+  const ongoingList: ParticipantHistoryItem[] = ongoingResp?.data ?? [];
+  const completedList: ParticipantHistoryItem[] = completedResp?.data ?? [];
   return (
     <>
       <SiteHeader title="Ujian Online" />
