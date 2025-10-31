@@ -438,7 +438,7 @@ export default function QuestionsPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
                             <Link
-                              href={`/master/questions/add-edit?id=${q.id}&category_id=${categoryId}`}
+                              href={`/cms/questions/add-edit?id=${q.id}&category_id=${categoryId}`}
                             >
                               Edit
                             </Link>
