@@ -21,6 +21,7 @@ import {
   useEndSessionMutation,
 } from "@/services/student/tryout.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
+import Swal from "sweetalert2";
 
 type TryoutMonitoringDialogProps = {
   open: boolean;
@@ -31,8 +32,8 @@ type TryoutMonitoringDialogProps = {
 };
 
 const MONITOR_PER_PAGE = 10;
+const DIALOG_ID = "tryout-monitoring-dialog";
 
-/** bentuk pagination murni dari backend */
 type ParticipantPagination = {
   current_page: number;
   data: ParticipantHistoryItem[];
@@ -40,14 +41,12 @@ type ParticipantPagination = {
   total: number;
 };
 
-/** bentuk yang dibungkus backend kamu: { code, message, data: {...} } */
 type ParticipantWrappedPagination = {
   code: number;
   message: string;
   data: ParticipantPagination;
 };
 
-/** cek shape pagination langsung */
 function isParticipantPagination(
   value: unknown
 ): value is ParticipantPagination {
@@ -60,7 +59,6 @@ function isParticipantPagination(
   );
 }
 
-/** cek shape yang dibungkus { code, message, data: {...} } */
 function isParticipantWrappedPagination(
   value: unknown
 ): value is ParticipantWrappedPagination {
@@ -71,18 +69,12 @@ function isParticipantWrappedPagination(
   return isParticipantPagination(inner);
 }
 
-/** normalisasi supaya keluar selalu ParticipantPagination */
 function toParticipantPagination(
   value: unknown,
   fallbackPage: number
 ): ParticipantPagination {
-  if (isParticipantPagination(value)) {
-    return value;
-  }
-  if (isParticipantWrappedPagination(value)) {
-    return value.data;
-  }
-  // fallback kalau service belum balik data / lagi loading
+  if (isParticipantPagination(value)) return value;
+  if (isParticipantWrappedPagination(value)) return value.data;
   return {
     current_page: fallbackPage,
     data: [],
@@ -91,7 +83,6 @@ function toParticipantPagination(
   };
 }
 
-/** helper ambil nama peserta dari berbagai shape */
 function getParticipantName(p: ParticipantHistoryItem): string {
   const p1 = (p as { user_name?: string }).user_name;
   if (p1) return p1;
@@ -116,7 +107,18 @@ export default function TryoutMonitoringDialog({
   const [monitorPageOngoing, setMonitorPageOngoing] = useState(1);
   const [monitorPageCompleted, setMonitorPageCompleted] = useState(1);
 
-  // base query: ikut backend
+  // SweetAlert instance ditempel ke dalam dialog agar bisa di-click dan tidak tertutup overlay
+  const swal = Swal.mixin({
+    target: `#${DIALOG_ID}`, // render di dalam DialogContent
+    customClass: {
+      container: "!z-[9999]",
+      popup: "!z-[10000]",
+    },
+    // hindari layout shift saat swal muncul di dalam container yang scrollable
+    scrollbarPadding: false,
+    heightAuto: false,
+  });
+
   const baseMonitor =
     open && test
       ? {
@@ -165,7 +167,6 @@ export default function TryoutMonitoringDialog({
     }
   );
 
-  // normalisasi dua2nya tanpa pakai any
   const ongoingResp = toParticipantPagination(
     ongoingRespRaw,
     monitorPageOngoing
@@ -175,13 +176,11 @@ export default function TryoutMonitoringDialog({
     monitorPageCompleted
   );
 
-  // ongoing
   const ongoingList = ongoingResp.data;
   const ongoingCurrentPage = ongoingResp.current_page;
   const ongoingLastPage = ongoingResp.last_page;
   const ongoingTotal = ongoingResp.total;
 
-  // completed
   const completedList = completedResp.data;
   const completedCurrentPage = completedResp.current_page;
   const completedLastPage = completedResp.last_page;
@@ -197,29 +196,72 @@ export default function TryoutMonitoringDialog({
     await Promise.all([refetchOngoing(), refetchCompleted()]);
   }
 
+  // === Ganti confirm/alert -> SweetAlert2 (klik-able di dalam dialog) ===
   async function handleForceFinish(participantTestId: number, nama: string) {
-    const ok = confirm(`Selesaikan ujian untuk ${nama}?`);
-    if (!ok) return;
+    const res = await swal.fire({
+      icon: "warning",
+      title: "Selesaikan ujian?",
+      text: `Ujian milik ${nama} akan ditandai selesai.`,
+      showCancelButton: true,
+      confirmButtonText: "Ya, selesaikan",
+      cancelButtonText: "Batal",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+    if (!res.isConfirmed) return;
+
     try {
       await endSessionAdmin(participantTestId).unwrap();
       await refetchMonitor();
+      await swal.fire({
+        icon: "success",
+        title: "Berhasil diselesaikan",
+        text: `Ujian ${nama} telah selesai.`,
+        timer: 1400,
+        showConfirmButton: false,
+      });
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : "Gagal menyelesaikan sesi peserta";
-      alert(message);
+        e instanceof Error ? e.message : "Gagal menyelesaikan sesi peserta.";
+      await swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: message,
+      });
     }
   }
 
   async function handleReopen(participantTestId: number, nama: string) {
-    const ok = confirm(`Izinkan ${nama} mengerjakan lagi?`);
-    if (!ok) return;
+    const res = await swal.fire({
+      icon: "question",
+      title: "Buka lagi ujian?",
+      text: `Peserta ${nama} akan bisa mengerjakan lagi.`,
+      showCancelButton: true,
+      confirmButtonText: "Ya, buka lagi",
+      cancelButtonText: "Batal",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+    if (!res.isConfirmed) return;
+
     try {
       await regenerateTest(participantTestId).unwrap();
       await refetchMonitor();
+      await swal.fire({
+        icon: "success",
+        title: "Berhasil dibuka lagi",
+        text: `Peserta ${nama} bisa mengerjakan kembali.`,
+        timer: 1400,
+        showConfirmButton: false,
+      });
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : "Gagal membuka sesi peserta";
-      alert(message);
+        e instanceof Error ? e.message : "Gagal membuka sesi peserta.";
+      await swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: message,
+      });
     }
   }
 
@@ -239,7 +281,11 @@ export default function TryoutMonitoringDialog({
         else handleClose();
       }}
     >
-      <DialogContent className="max-h-[95vh] overflow-y-auto sm:max-w-3xl">
+      {/* id dipakai sebagai target swal supaya klik-able */}
+      <DialogContent
+        id={DIALOG_ID}
+        className="max-h-[95vh] overflow-y-auto sm:max-w-3xl"
+      >
         <DialogHeader>
           <DialogTitle>
             Monitoring Ujian
@@ -248,7 +294,7 @@ export default function TryoutMonitoringDialog({
         </DialogHeader>
 
         {/* top bar */}
-        <div className="flex flex-col md:flex-row gap-3 justify-between items-start md:items-center mb-3">
+        <div className="mb-3 flex flex-col items-start justify-between gap-3 md:flex-row md:items-center">
           <p className="text-sm text-muted-foreground">
             {isSuperadmin
               ? "Anda melihat semua peserta."
@@ -265,18 +311,14 @@ export default function TryoutMonitoringDialog({
                 setMonitorPageCompleted(1);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  void refetchMonitor();
-                }
+                if (e.key === "Enter") void refetchMonitor();
               }}
               className="h-9 w-48"
             />
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                void refetchMonitor();
-              }}
+              onClick={() => void refetchMonitor()}
               disabled={loadingMonitor}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
@@ -286,7 +328,7 @@ export default function TryoutMonitoringDialog({
         </div>
 
         {/* tabs */}
-        <div className="flex gap-2 mb-4 border-b">
+        <div className="mb-4 flex gap-2 border-b">
           <button
             type="button"
             onClick={() => {
@@ -320,14 +362,14 @@ export default function TryoutMonitoringDialog({
         {/* TAB: SEDANG MENGERJAKAN */}
         {monitorTab === "ongoing" ? (
           <div className="space-y-2">
-            <div className="rounded-md border overflow-hidden">
+            <div className="overflow-hidden rounded-md border">
               <table className="w-full text-xs">
                 <thead className="bg-muted/40">
                   <tr>
-                    <th className="p-2 text-left w-[38%]">Peserta</th>
+                    <th className="w-[38%] p-2 text-left">Peserta</th>
                     <th className="p-2 text-left">Mulai</th>
                     <th className="p-2 text-left">Status</th>
-                    <th className="p-2 text-right w-[140px]">Aksi</th>
+                    <th className="w-[140px] p-2 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -388,9 +430,7 @@ export default function TryoutMonitoringDialog({
             <Pager
               page={ongoingCurrentPage}
               lastPage={ongoingLastPage}
-              onChange={(p) => {
-                setMonitorPageOngoing(p);
-              }}
+              onChange={(p) => setMonitorPageOngoing(p)}
             />
           </div>
         ) : null}
@@ -398,14 +438,14 @@ export default function TryoutMonitoringDialog({
         {/* TAB: SUDAH SELESAI */}
         {monitorTab === "completed" ? (
           <div className="space-y-2">
-            <div className="rounded-md border overflow-hidden">
+            <div className="overflow-hidden rounded-md border">
               <table className="w-full text-xs">
                 <thead className="bg-muted/40">
                   <tr>
-                    <th className="p-2 text-left w-[38%]">Peserta</th>
+                    <th className="w-[38%] p-2 text-left">Peserta</th>
                     <th className="p-2 text-left">Selesai</th>
                     <th className="p-2 text-left">Status</th>
-                    <th className="p-2 text-right w-[140px]">Aksi</th>
+                    <th className="w-[140px] p-2 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -466,9 +506,7 @@ export default function TryoutMonitoringDialog({
             <Pager
               page={completedCurrentPage}
               lastPage={completedLastPage}
-              onChange={(p) => {
-                setMonitorPageCompleted(p);
-              }}
+              onChange={(p) => setMonitorPageCompleted(p)}
             />
           </div>
         ) : null}
