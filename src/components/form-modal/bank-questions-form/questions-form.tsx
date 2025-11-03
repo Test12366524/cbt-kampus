@@ -38,6 +38,39 @@ import {
 // SunEditor (client only)
 const SunEditor = dynamic(() => import("suneditor-react"), { ssr: false });
 
+const extractUrlFromResponse = (res: unknown): string => {
+  // 1. PERBAIKAN: Cek jika 'res' itu sendiri adalah string URL
+  if (typeof res === "string" && (res.startsWith("http") || res.startsWith("/"))) {
+    return res;
+  }
+
+  // 2. Lanjutkan logika lama jika 'res' adalah objek
+  if (typeof res !== "object" || res === null) return "";
+  const obj = res as Record<string, unknown>;
+
+  // { data: "https://..." }  <-- punyamu
+  if (typeof obj.data === "string") return obj.data;
+
+  // { url: "..." }
+  if (typeof obj.url === "string") return obj.url;
+
+  // { file_url: "..." }
+  if (typeof obj.file_url === "string") return obj.file_url;
+
+  // { location: "..." }
+  if (typeof obj.location === "string") return obj.location;
+
+  // { data: { url/file_url/location } }
+  if (typeof obj.data === "object" && obj.data !== null) {
+    const dataObj = obj.data as Record<string, unknown>;
+    if (typeof dataObj.url === "string") return dataObj.url;
+    if (typeof dataObj.file_url === "string") return dataObj.file_url;
+    if (typeof dataObj.location === "string") return dataObj.location;
+  }
+
+  return "";
+};
+
 type Props = {
   categories: CategoryQuestion[];
   initial?: Questions | null;
@@ -118,45 +151,23 @@ export default function QuestionsForm({
         uploadHandler({ errorMessage: "File tidak ditemukan" });
         return false;
       }
-
-      // fungsi buat ambil url dari berbagai bentuk response
-      const extractUrlFromResponse = (res: unknown): string => {
-        if (typeof res !== "object" || res === null) return "";
-        const obj = res as Record<string, unknown>;
-
-        // { data: "https://..." }  <-- punyamu
-        if (typeof obj.data === "string") return obj.data;
-
-        // { url: "..." }
-        if (typeof obj.url === "string") return obj.url;
-
-        // { file_url: "..." }
-        if (typeof obj.file_url === "string") return obj.file_url;
-
-        // { location: "..." }
-        if (typeof obj.location === "string") return obj.location;
-
-        // { data: { url/file_url/location } }
-        if (typeof obj.data === "object" && obj.data !== null) {
-          const dataObj = obj.data as Record<string, unknown>;
-          if (typeof dataObj.url === "string") return dataObj.url;
-          if (typeof dataObj.file_url === "string") return dataObj.file_url;
-          if (typeof dataObj.location === "string") return dataObj.location;
-        }
-
-        return "";
-      };
-
+      
       // upload ke API kamu
       uploadFile(buildServiceUploadFormData({ file }))
         .unwrap()
         .then((res) => {
+          // Gunakan helper yang sudah di luar
           const url = extractUrlFromResponse(res);
 
           if (!url) {
+            // TAMBAHAN: Log untuk debugging
+            console.error(
+              "Gagal extract URL dari respon API. Respon:",
+              res
+            );
             uploadHandler({
               errorMessage:
-                "Upload berhasil tapi URL tidak ditemukan di response API",
+                "Upload berhasil tapi URL tidak ditemukan di response API. Cek console.",
             });
             return;
           }
@@ -173,6 +184,7 @@ export default function QuestionsForm({
           });
         })
         .catch((err: unknown) => {
+          console.error("Upload image gagal:", err); // TAMBAHAN: Log error
           uploadHandler({
             errorMessage:
               err instanceof Error ? err.message : "Upload gagal, coba lagi",
