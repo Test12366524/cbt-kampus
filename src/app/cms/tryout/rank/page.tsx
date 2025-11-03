@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw, ArrowLeft, Eye } from "lucide-react";
 import Pager from "@/components/ui/tryout-pagination";
-import { formatDate } from "@/lib/format-utils";
 
 import { useGetParticipantHistoryListQuery } from "@/services/student/tryout.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
 import { ParticipantHistoryDetail } from "../../../../components/modal/detail/page";
+import { ParticipantHistoryDetailPG } from "../../../../components/modal/detail-pg/page";
 
 export default function RankPage() {
   const router = useRouter();
@@ -33,6 +33,7 @@ export default function RankPage() {
     number | null
   >(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [detailPGOpen, setDetailPGOpen] = useState(false);
 
   // debounce input cari
   useEffect(() => {
@@ -131,9 +132,7 @@ export default function RankPage() {
                     <th className="p-3">Email</th>
                     <th className="p-3">Nilai</th>
                     <th className="p-3">Status</th>
-                    <th className="p-3">Mulai</th>
-                    <th className="p-3">Selesai</th>
-                    <th className="p-3 text-center">Aksi</th>
+                    <th className="p-3 text-left">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -163,13 +162,18 @@ export default function RankPage() {
                               <Badge variant="outline">On going</Badge>
                             )}
                           </td>
-                          <td className="p-3">
-                            {r.start_date ? formatDate(r.start_date) : "-"}
-                          </td>
-                          <td className="p-3">
-                            {r.end_date ? formatDate(r.end_date) : "-"}
-                          </td>
-                          <td className="p-3 text-center">
+                          <td className="p-3 text-right gap-1 inline-flex">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedParticipantId(r.id);
+                                setDetailPGOpen(true);
+                              }}
+                            >
+                              <Eye className="mr-1 h-4 w-4" />
+                              Detail PG
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -179,7 +183,7 @@ export default function RankPage() {
                               }}
                             >
                               <Eye className="mr-1 h-4 w-4" />
-                              Detail
+                              Detail Essay
                             </Button>
                           </td>
                         </tr>
@@ -211,6 +215,14 @@ export default function RankPage() {
       <ParticipantHistoryDetail
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        participantTestId={selectedParticipantId}
+        testId={testId}
+      />
+
+      {/* dialog detail pg */}
+      <ParticipantHistoryDetailPG
+        open={detailPGOpen}
+        onOpenChange={setDetailPGOpen}
         participantTestId={selectedParticipantId}
         testId={testId}
       />

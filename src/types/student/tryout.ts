@@ -86,6 +86,7 @@ export type ParticipantQuestionCategory = {
   question_category_id: number;
   test_question_category_details: TestQuestionCategoryDetails;
   question_category_details: QuestionCategory;
+  participant_questions?: [];
   grade: number;
   start_date: string | null;
   end_date: string | null;

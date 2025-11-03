@@ -87,7 +87,6 @@ export function ParticipantHistoryDetail({
   participantTestId,
   testId,
 }: ParticipantHistoryDetailProps) {
-  
   // State untuk modal grading
   const [gradingTarget, setGradingTarget] = useState<GradingTarget>(null);
   const [isGradingModalOpen, setIsGradingModalOpen] = useState(false);
@@ -100,6 +99,7 @@ export function ParticipantHistoryDetail({
         ? { participant_test_id: participantTestId, test_id: testId }
         : skipToken
     );
+
     
   // --- Hook Grading ---
   const [gradeEssay, { isLoading: isGrading }] = useGradeEssayMutation();
