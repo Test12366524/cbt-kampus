@@ -143,7 +143,7 @@ export default function StartTryoutPage() {
           <Button
             className="rounded-xl bg-sky-600 px-6 hover:bg-sky-700"
             onClick={handleStart}
-            disabled={isFetching || starting}
+            disabled={isFetching || starting || !activeCategory}
           >
             {isResume ? (
               <>

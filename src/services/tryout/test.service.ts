@@ -84,7 +84,8 @@ export const testApi = apiSlice.injectEndpoints({
         searchBySpecific?: string;
         orderBy?: string;
         orderDirection?: "asc" | "desc";
-        school_id?: number | null; // 🆕
+        school_id?: number | null;
+        is_active?: number | null;
       }
     >({
       query: ({
@@ -94,7 +95,8 @@ export const testApi = apiSlice.injectEndpoints({
         searchBySpecific,
         orderBy,
         orderDirection,
-        school_id, // 🆕
+        school_id,
+        is_active
       }) => {
         const qs = new URLSearchParams();
 
@@ -117,6 +119,9 @@ export const testApi = apiSlice.injectEndpoints({
         if (orderBy && orderBy.trim()) qs.set("orderBy", orderBy.trim());
         if (orderDirection && orderDirection.trim()) {
           qs.set("order", orderDirection.trim());
+        }
+        if (is_active !== undefined) {
+          qs.set("is_active", String(is_active));
         }
 
         // contoh hasil: /test/tests?paginate=10&searchBySpecific=school_id&page=1&search=2

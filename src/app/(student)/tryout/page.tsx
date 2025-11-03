@@ -43,6 +43,7 @@ export default function TryoutListPage() {
     page,
     paginate: PER_PAGE,
     search: q,
+    is_active: 1
   });
 
   // ongoing & completed (pakai service history)

@@ -132,6 +132,7 @@ export default function QuestionsPage() {
       page,
       paginate: 10,
       search: query,
+      question_category_id: categoryId || undefined,
     },
     {
       refetchOnMountOrArgChange: true,
@@ -157,7 +158,6 @@ export default function QuestionsPage() {
   }, [search]);
 
   const allRows: Questions[] = qResp?.data ?? [];
-
   const rows = useMemo(() => {
     if (!categoryId) return [];
     return allRows.filter((r) => {
