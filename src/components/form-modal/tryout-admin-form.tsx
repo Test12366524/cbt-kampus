@@ -14,7 +14,6 @@ import type { School } from "@/types/master/school";
 import type { Users } from "@/types/user";
 import { useGetSchoolListQuery } from "@/services/master/school.service";
 import { useGetUsersListQuery } from "@/services/users-management.service";
-import { Select } from "../ui/select";
 
 /** === Shared enums (sinkron dgn service) === */
 export type TimerType = string;
