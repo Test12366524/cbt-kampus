@@ -76,6 +76,7 @@ type TestPayload = {
   is_graded?: boolean;
   is_explanation_released?: boolean;
   user_id: number;
+  status: number;
 };
 
 const emptyForm: FormState = {
@@ -98,6 +99,7 @@ const emptyForm: FormState = {
   is_graded: false,
   is_explanation_released: false,
   user_id: 0,
+  status: 1,
 };
 
 function dateOnly(input?: string | null): string {
@@ -197,6 +199,7 @@ export default function TryoutPage() {
     is_graded: t.is_graded,
     is_explanation_released: t.is_explanation_released,
     user_id: t.user_id ?? 0,
+    status: t.status ? 1 : 0,
   });
 
   const toPayload = (f: FormState): TestPayload => {
@@ -217,6 +220,7 @@ export default function TryoutPage() {
       is_graded: f.is_graded,
       is_explanation_released: f.is_explanation_released,
       user_id: Number(f.user_id || 0),
+      status: Number(f.status || 0),
     };
 
     if (f.timer_type === "per_test") {
@@ -448,6 +452,7 @@ export default function TryoutPage() {
                     <th className="p-3">Shuffle</th>
                     <th className="p-3">Mulai</th>
                     <th className="p-3">Berakhir</th>
+                    <th className="p-3">Status</th>
                     <th className="p-3 text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -496,6 +501,13 @@ export default function TryoutPage() {
                           <td className="p-3">
                             {t.end_date ? displayDate(t.end_date) : "-"}
                           </td>
+                            <td className="p-3">
+                            {t.status === true ? (
+                              <Badge variant="success">Aktif</Badge>
+                            ) : (
+                              <Badge variant="destructive">Non-aktif</Badge>
+                            )}
+                            </td>
                           <td className="p-3">
                             <div className="flex gap-1 justify-end">
                               <Link

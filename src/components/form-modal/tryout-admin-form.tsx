@@ -14,6 +14,7 @@ import type { School } from "@/types/master/school";
 import type { Users } from "@/types/user";
 import { useGetSchoolListQuery } from "@/services/master/school.service";
 import { useGetUsersListQuery } from "@/services/users-management.service";
+import { Select } from "../ui/select";
 
 /** === Shared enums (sinkron dgn service) === */
 export type TimerType = string;
@@ -41,6 +42,7 @@ export type FormState = {
   is_graded: boolean;
   is_explanation_released: boolean;
   user_id: number; // ⬅️ NEW: pengawas
+  status: number;
 };
 
 type Props = {
@@ -317,6 +319,14 @@ export default function TryoutForm({
               buttonList: defaultButtons,
             }}
           />
+        </div>
+        <div className="flex items-center gap-3 mt-4">
+          <Switch
+            checked={!!form.status}
+            onCheckedChange={(v) => setForm({ ...form, status: v ? 1 : 0 })}
+            // disabled={isFetching} // Remove or replace 'isFetching' if not defined
+          />
+          <Label>Status aktif</Label>
         </div>
       </div>
 

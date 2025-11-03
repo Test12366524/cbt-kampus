@@ -22,6 +22,7 @@ export interface Test {
   created_at: string;
   updated_at: string;
   school_name: string;
+  status?: boolean | number;
   user_id: number | null;
   pengawas_name: string | null;
 }
@@ -53,6 +54,7 @@ export interface TestPayload {
   assessment_type?: AssessmentType;
   code?: string | null;
   max_attempts?: string | null;
+  status?: number;
   is_graded?: boolean;
   is_explanation_released?: boolean;
 }
