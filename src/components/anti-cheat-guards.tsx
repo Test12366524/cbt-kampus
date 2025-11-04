@@ -25,7 +25,7 @@ export default function ExamGuard({
 }: ExamGuardProps) {
   // NOTE: isFs dihapus karena tidak dipakai
   const violationsRef = useRef<number>(0);
-  const warnedOnceRef = useRef<boolean>(false);
+  // const warnedOnceRef = useRef<boolean>(false);
   const isProcessingRef = useRef<boolean>(false);
 
   const showWarning = async (msg?: string) => {
@@ -130,7 +130,7 @@ export default function ExamGuard({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const ctrlOrCmd = e.ctrlKey || e.metaKey;
-      const shift = e.shiftKey;
+      // const shift = e.shiftKey;
       const key = e.key.toLowerCase();
 
       // if (e.key === "F12") {
@@ -182,8 +182,8 @@ export default function ExamGuard({
   // ——— Deteksi DevTools sederhana
   useEffect(() => {
     const check = () => {
-      const deltaW = window.outerWidth - window.innerWidth;
-      const deltaH = window.outerHeight - window.innerHeight;
+      // const deltaW = window.outerWidth - window.innerWidth;
+      // const deltaH = window.outerHeight - window.innerHeight;
       // if (deltaW > 160 || deltaH > 160) {
       //   void addViolation("Developer tools terdeteksi aktif.");
       // }
