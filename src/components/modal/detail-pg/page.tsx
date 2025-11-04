@@ -276,34 +276,62 @@ function QuestionItem({
       <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
         {type === "essay" ? (
           <>
-            <span className="text-muted-foreground">Status Nilai:</span>
-            <Badge variant={isGraded ? "default" : "destructive"}>
-              {isGraded ? "SUDAH DINILAI" : "BELUM DINILAI"}
-            </Badge>
-            {isGraded && (
-              <span className="text-sm font-bold text-primary">
-                Nilai: {question.point ?? 0}
-              </span>
-            )}
+        <span className="text-muted-foreground">Status Nilai:</span>
+        <Badge variant={isGraded ? "default" : "destructive"}>
+          {isGraded ? "SUDAH DINILAI" : "BELUM DINILAI"}
+        </Badge>
+        {isGraded && (
+          <span className="text-sm font-bold text-primary">
+            Nilai: {question.point ?? 0}
+          </span>
+        )}
           </>
         ) : (
           <>
-            <span className="text-muted-foreground">Status:</span>
-            <Badge
-              variant={
-                isCorrect ? "default" : isCorrect === false ? "destructive" : "secondary"
-              }
-              className={
-                isCorrect ? "bg-emerald-500 hover:bg-emerald-500" : ""
-              }
-            >
-              {isCorrect ? "BENAR" : isCorrect === false ? "SALAH" : "—"}
-            </Badge>
-            {isCorrect === false && (
-              <span className="text-xs text-muted-foreground">
-                Kunci: {qd.answer ?? "—"}
-              </span>
+        <span className="text-muted-foreground">Status:</span>
+        <Badge
+          variant={
+            isCorrect ||
+            (qd.answer &&
+              userAns &&
+              qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase())
+              ? "default"
+              : isCorrect === false
+              ? "destructive"
+              : "secondary"
+          }
+          className={
+            isCorrect ||
+            (qd.answer &&
+              userAns &&
+              qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase())
+              ? "bg-emerald-500 hover:bg-emerald-500"
+              : ""
+          }
+        >
+          {isCorrect ||
+          (qd.answer &&
+            userAns &&
+            qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase())
+            ? "BENAR"
+            : isCorrect === false
+            ? "SALAH"
+            : "—"}
+        </Badge>
+        {isCorrect === false && (
+          <span className="text-xs text-muted-foreground">
+            Kunci: {qd.answer ?? "—"}
+            {qd.answer && userAns && (
+          <>
+            {" "}
+            {/* Tampilkan perbandingan jika jawaban peserta beda hanya di case */}
+            {qd.answer.trim().toLowerCase() === userAns.trim().toLowerCase()
+              ? "(Jawaban benar, hanya berbeda huruf besar/kecil)"
+              : ""}
+          </>
             )}
+          </span>
+        )}
           </>
         )}
       </div>
