@@ -98,10 +98,10 @@ export default function ExamGuard({
 
   // ——— Blok context menu, copy, drag, selection
   useEffect(() => {
-    const onContext = (e: MouseEvent) => {
-      e.preventDefault();
-      void addViolation("Klik kanan dinonaktifkan selama ujian.");
-    };
+    // const onContext = (e: MouseEvent) => {
+    //   e.preventDefault();
+    //   void addViolation("Klik kanan dinonaktifkan selama ujian.");
+    // };
     const onCopy = (e: ClipboardEvent) => {
       e.preventDefault();
       void addViolation("Menyalin konten dinonaktifkan selama ujian.");
@@ -113,13 +113,13 @@ export default function ExamGuard({
       e.preventDefault();
     };
 
-    document.addEventListener("contextmenu", onContext);
+    // document.addEventListener("contextmenu", onContext);
     document.addEventListener("copy", onCopy);
     document.addEventListener("dragstart", onDragStart as EventListener);
     document.addEventListener("selectstart", onSelectStart);
 
     return () => {
-      document.removeEventListener("contextmenu", onContext);
+      // document.removeEventListener("contextmenu", onContext);
       document.removeEventListener("copy", onCopy);
       document.removeEventListener("dragstart", onDragStart as EventListener);
       document.removeEventListener("selectstart", onSelectStart);
@@ -133,16 +133,16 @@ export default function ExamGuard({
       const shift = e.shiftKey;
       const key = e.key.toLowerCase();
 
-      if (e.key === "F12") {
-        e.preventDefault();
-        void addViolation("Membuka developer tools dilarang.");
-        return;
-      }
-      if (ctrlOrCmd && shift && ["i", "j", "c"].includes(key)) {
-        e.preventDefault();
-        void addViolation("Membuka developer tools dilarang.");
-        return;
-      }
+      // if (e.key === "F12") {
+      //   e.preventDefault();
+      //   void addViolation("Membuka developer tools dilarang.");
+      //   return;
+      // }
+      // if (ctrlOrCmd && shift && ["i", "j", "c"].includes(key)) {
+      //   e.preventDefault();
+      //   void addViolation("Membuka developer tools dilarang.");
+      //   return;
+      // }
       if (ctrlOrCmd && key === "u") {
         e.preventDefault();
         void addViolation("Melihat sumber halaman dilarang.");
@@ -161,15 +161,15 @@ export default function ExamGuard({
   // ——— Deteksi tab switch / minimize
   useEffect(() => {
     const onVisibility = () => {
-      if (document.hidden) {
-        void addViolation("Berpindah tab/jendela terdeteksi.");
-      } else if (!warnedOnceRef.current) {
-        warnedOnceRef.current = true;
-        void showWarning("Tetap di tab ini selama ujian berlangsung.");
-      }
+      // if (document.hidden) {
+      //   void addViolation("Berpindah tab/jendela terdeteksi.");
+      // } else if (!warnedOnceRef.current) {
+      //   warnedOnceRef.current = true;
+      //   void showWarning("Tetap di tab ini selama ujian berlangsung.");
+      // }
     };
     const onBlur = () => {
-      void addViolation("Fokus halaman hilang (kemungkinan berpindah tab).");
+      // void addViolation("Fokus halaman hilang (kemungkinan berpindah tab).");
     };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
@@ -184,9 +184,9 @@ export default function ExamGuard({
     const check = () => {
       const deltaW = window.outerWidth - window.innerWidth;
       const deltaH = window.outerHeight - window.innerHeight;
-      if (deltaW > 160 || deltaH > 160) {
-        void addViolation("Developer tools terdeteksi aktif.");
-      }
+      // if (deltaW > 160 || deltaH > 160) {
+      //   void addViolation("Developer tools terdeteksi aktif.");
+      // }
     };
     const id = window.setInterval(check, 2000);
     return () => window.clearInterval(id);

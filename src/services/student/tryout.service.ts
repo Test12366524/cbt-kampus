@@ -302,6 +302,14 @@ export const tryoutApi = apiSlice.injectEndpoints({
       ],
     }),
 
+    deleteParticipant: builder.mutation<ParticipantTest, number>({
+      query: (participant_test_id) => ({
+        url: `/participant/history-test/${participant_test_id}`,
+        method: "DELETE",
+      }),
+      transformResponse: (res: EndSessionResponse) => res.data,
+    }),
+
     // ── ANSWERS: SAVE / RESET / FLAG ─────────────────────────────────────────
     saveAnswer: builder.mutation<
       AnswerResponse["data"],
@@ -368,6 +376,7 @@ export const {
   useContinueCategoryMutation,
   useEndCategoryMutation,
   useEndSessionMutation,
+  useDeleteParticipantMutation,
   // answers
   useSaveAnswerMutation,
   useResetAnswerMutation,

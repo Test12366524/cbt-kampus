@@ -49,12 +49,12 @@ export default function TryoutListPage() {
   // ongoing & completed (pakai service history)
   const { data: ongoing } = useGetParticipantHistoryListQuery({
     page: 1,
-    paginate: 200,
+    paginate: 10,
     is_ongoing: 1,
   });
   const { data: completed } = useGetParticipantHistoryListQuery({
     page: 1,
-    paginate: 200,
+    paginate: 10,
     is_completed: 1,
   });
 

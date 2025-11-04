@@ -34,6 +34,7 @@ import Link from "next/link";
 import Swal from "sweetalert2";
 import ExamGuard from "@/components/anti-cheat-guards";
 import SanitizedHtml from "@/components/sanitized-html";
+import RichTextView from "@/components/ui/rich-text-view";
 
 /** ===== Util types (tanpa any) ===== */
 type MinimalTestDetails = {
@@ -489,10 +490,7 @@ export default function ExamPage() {
 
               {/* Pertanyaan */}
               <div className="prose prose-sm max-w-none">
-                <SanitizedHtml
-                  className="prose prose-sm max-w-none"
-                  html={(current.question_details as QuestionDetails).question}
-                />
+                <RichTextView html={(current.question_details as QuestionDetails).question} />
               </div>
 
               {/* Opsi/Jawaban */}
@@ -745,10 +743,7 @@ function MCControl({
                 }
               }}
             />
-            <SanitizedHtml
-              className="prose prose-sm max-w-none"
-              html={o.text}
-            />
+            <RichTextView html={o.text} />
           </label>
         );
       })}

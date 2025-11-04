@@ -12,13 +12,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, CheckCircle2, RotateCcw } from "lucide-react";
+import { RefreshCw, CheckCircle2, RotateCcw, Eraser } from "lucide-react";
 import Pager from "@/components/ui/tryout-pagination";
 import { displayDate } from "@/lib/format-utils";
 import {
   useGetParticipantHistoryListQuery,
   useRegenerateTestMutation,
   useEndSessionMutation,
+  useDeleteParticipantMutation,
 } from "@/services/student/tryout.service";
 import type { ParticipantHistoryItem } from "@/types/student/tryout";
 import Swal from "sweetalert2";
@@ -189,6 +190,7 @@ export default function TryoutMonitoringDialog({
   const [regenerateTest, { isLoading: continuingAdmin }] =
     useRegenerateTestMutation();
   const [endSessionAdmin, { isLoading: endingAdmin }] = useEndSessionMutation();
+  const [deleteParticipant, { isLoading: deletingAdmin }] = useDeleteParticipantMutation();
 
   const loadingMonitor = loadingOngoing || loadingCompleted;
 
@@ -265,6 +267,40 @@ export default function TryoutMonitoringDialog({
     }
   }
 
+  async function handleDelete(participantTestId: number, nama: string) {
+    const res = await swal.fire({
+      icon: "warning",
+      title: "Hapus data ujian?",
+      text: `Ujian milik ${nama} akan dihapus.`,
+      showCancelButton: true,
+      confirmButtonText: "Ya, hapus",
+      cancelButtonText: "Batal",
+      reverseButtons: true,
+      focusCancel: true,
+    });
+    if (!res.isConfirmed) return;
+
+    try {
+      await deleteParticipant(participantTestId).unwrap();
+      await refetchMonitor();
+      await swal.fire({
+        icon: "success",
+        title: "Berhasil dihapus",
+        text: `Data telah dihapus.`,
+        timer: 1400,
+        showConfirmButton: false,
+      });
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Gagal menghapus data.";
+      await swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: message,
+      });
+    }
+  }
+
   function handleClose() {
     setMonitorTab("ongoing");
     setMonitorSearch("");
@@ -284,7 +320,7 @@ export default function TryoutMonitoringDialog({
       {/* id dipakai sebagai target swal supaya klik-able */}
       <DialogContent
         id={DIALOG_ID}
-        className="max-h-[95vh] overflow-y-auto sm:max-w-3xl"
+        className="max-h-[95vh] overflow-y-auto sm:max-w-6xl"
       >
         <DialogHeader>
           <DialogTitle>
@@ -369,7 +405,7 @@ export default function TryoutMonitoringDialog({
                     <th className="w-[38%] p-2 text-left">Peserta</th>
                     <th className="p-2 text-left">Mulai</th>
                     <th className="p-2 text-left">Status</th>
-                    <th className="w-[140px] p-2 text-right">Aksi</th>
+                    <th className="w-[280px] p-2 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -412,6 +448,16 @@ export default function TryoutMonitoringDialog({
                               <CheckCircle2 className="mr-1 h-3 w-3" />
                               Selesaikan
                             </Button>
+                            &nbsp;
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleDelete(p.id, nama)}
+                              disabled={deletingAdmin}
+                            >
+                              <Eraser className="mr-1 h-3 w-3" />
+                              Hapus
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -445,7 +491,7 @@ export default function TryoutMonitoringDialog({
                     <th className="w-[38%] p-2 text-left">Peserta</th>
                     <th className="p-2 text-left">Selesai</th>
                     <th className="p-2 text-left">Status</th>
-                    <th className="w-[140px] p-2 text-right">Aksi</th>
+                    <th className="w-[280px] p-2 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -487,6 +533,16 @@ export default function TryoutMonitoringDialog({
                             >
                               <RotateCcw className="mr-1 h-3 w-3" />
                               Buka lagi
+                            </Button>
+                            &nbsp;
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleDelete(p.id, nama)}
+                              disabled={deletingAdmin}
+                            >
+                              <Eraser className="mr-1 h-3 w-3" />
+                              Hapus
                             </Button>
                           </td>
                         </tr>
